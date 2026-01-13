@@ -1,0 +1,13 @@
+# MATLAB
+*.asv
+*.m~
+*.mex*
+*.fig
+*.mat
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
