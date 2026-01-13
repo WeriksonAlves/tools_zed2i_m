@@ -21,7 +21,7 @@ while ishandle(hFig) && toc(t0) < seconds
     end
 
     img = zed.rGetImage();
-    depth = zed.rGetDepth();
+    [depth, mask] = zed.rGetDepth();
 
     clf;
 
@@ -37,11 +37,22 @@ while ishandle(hFig) && toc(t0) < seconds
 
     subplot(1,2,2);
     if ~isempty(depth)
-        imagesc(depth);
-        axis image off;
-        colorbar;
-        title(sprintf('Depth | FPS: %.1f | Drops: %d', ...
-            zed.pData.Metrics.DepthFps, zed.pData.Metrics.DepthDrops));
+        d = depth;
+        d = d(:);
+        d = d(isfinite(d));   % remove NaN/Inf
+
+        if ~isempty(d)
+            lo = prctile(d, 5);
+            hi = prctile(d, 95);
+            imagesc(depth, [lo hi]);
+            axis image off;
+            colorbar;
+            title(sprintf('Depth | FPS: %.1f | Drops: %d', ...
+                zed.pData.Metrics.DepthFps, zed.pData.Metrics.DepthDrops));
+        else
+            axis off;
+            text(0.1, 0.5, 'Depth has no valid values');
+        end
     else
         axis off;
         text(0.1, 0.5, 'No Depth');

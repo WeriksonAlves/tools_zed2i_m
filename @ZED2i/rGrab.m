@@ -33,6 +33,10 @@ function ok = rGrab(zed)
 
         depth = rosReadImage(msgDepth);
 
+        % --- Depth sanitization (safe default) ---
+        depth(~isfinite(depth)) = NaN;      % keep invalid as NaN
+        depth(depth <= 0) = NaN;            % non-positive is invalid for depth
+
         % Optional sanity: keep as single to reduce memory footprint
         if ~isa(depth, 'single')
             depth = single(depth);
