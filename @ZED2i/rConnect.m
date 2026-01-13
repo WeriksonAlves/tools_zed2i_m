@@ -1,5 +1,5 @@
 function rConnect(zed)
-%rConnect Create ROS2 node and image subscriber.
+%rConnect Create ROS2 node and image/depth subscribers.
 
     zed.pFlag.LastError = '';
 
@@ -15,8 +15,14 @@ function rConnect(zed)
             zed.pPar.topicImage, ...
             "sensor_msgs/Image");
 
+        zed.pCom.subDepth = ros2subscriber( ...      % NEW
+            zed.pCom.node, ...
+            zed.pPar.topicDepth, ...
+            "sensor_msgs/Image");
+
         zed.pFlag.Connected = true;
         zed.pFlag.HasImage = false;
+        zed.pFlag.HasDepth = false;                  % NEW
 
     catch excp
         zed.pFlag.Connected = false;
