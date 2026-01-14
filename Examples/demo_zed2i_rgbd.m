@@ -11,7 +11,7 @@ zed.rConnect();
 
 hFig = figure('Name', 'ZED2i RGB-D Preview', 'NumberTitle', 'off');
 t0 = tic;
-seconds = 60;
+seconds = 30;
 
 while ishandle(hFig) && toc(t0) < seconds
     ok = zed.rGrab();
@@ -37,26 +37,34 @@ while ishandle(hFig) && toc(t0) < seconds
 
     subplot(1,2,2);
     if ~isempty(depth)
-        d = depth;
-        d = d(:);
-        d = d(isfinite(d));   % remove NaN/Inf
+
+        d = depth(:);
+        d = d(isfinite(d) & d > 0);
 
         if ~isempty(d)
-            lo = prctile(d, 5);
-            hi = prctile(d, 95);
-            imagesc(depth, [lo hi]);
+            lo = prctile(d, 2);
+            hi = prctile(d, 98);
+
+            imagesc(depth, [lo hi]);   % linear scaling, in meters
             axis image off;
-            colorbar;
-            title(sprintf('Depth | FPS: %.1f | Drops: %d', ...
-                zed.pData.Metrics.DepthFps, zed.pData.Metrics.DepthDrops));
+            colormap(gca, turbo);
+
+            cb = colorbar;
+            cb.Label.String = 'Depth (m)';
+
+            title(sprintf('Depth | Range: [%.2f, %.2f] m | FPS: %.1f', ...
+                lo, hi, zed.pData.Metrics.DepthFps));
         else
             axis off;
             text(0.1, 0.5, 'Depth has no valid values');
         end
+
     else
         axis off;
         text(0.1, 0.5, 'No Depth');
     end
+
+
 
     drawnow;
 end
