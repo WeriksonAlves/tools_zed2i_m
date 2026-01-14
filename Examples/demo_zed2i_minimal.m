@@ -1,6 +1,11 @@
 % demo_zed2i_minimal.m
 % Minimal test for ZED2i wrapper.
 
+clearvars
+clear all
+close all
+clc
+
 zed = ZED2i();
 zed.rConnect();
 

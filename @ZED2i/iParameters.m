@@ -1,9 +1,7 @@
 function iParameters(zed)
-%iParameters Initialize default parameters for ZED2i ROS2 topics.
+%iParameters Default parameters for the minimal ZED2i wrapper.
 
-    zed.pPar.namespace = '/zed/zed_node';
-
-    % Core topics (from your ros2 topic list)
+    % Topics
     zed.pPar.topicImage      = '/zed/zed_node/left/image_rect_color';
     zed.pPar.topicCameraInfo = '/zed/zed_node/left/camera_info';
     zed.pPar.topicDepth      = '/zed/zed_node/depth/depth_registered';
