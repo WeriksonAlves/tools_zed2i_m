@@ -1,9 +1,6 @@
 function iParameters(zed)
 %iParameters Default parameters for the minimal ZED2i wrapper.
 
-    % Namespace
-    zed.pPar.namespace = '/zed/zed_node';
-
     % Topics
     zed.pPar.topicImage      = '/zed/zed_node/left/image_rect_color';
     zed.pPar.topicCameraInfo = '/zed/zed_node/left/camera_info';
