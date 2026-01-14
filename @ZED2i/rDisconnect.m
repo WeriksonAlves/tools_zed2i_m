@@ -18,8 +18,15 @@ function rDisconnect(zed)
         zed.pCom.node = [];
     end
 
+    if isfield(zed.pCom, 'subInfo') && ~isempty(zed.pCom.subInfo)
+        clear zed.pCom.subInfo;
+        zed.pCom.subInfo = [];
+    end
+
     zed.pCom.lastMsgImage = [];
-    zed.pCom.lastMsgDepth = [];   % NEW
+    zed.pCom.lastMsgDepth = [];
     zed.pFlag.HasImage = false;
-    zed.pFlag.HasDepth = false;   % NEW
+    zed.pFlag.HasDepth = false;
+    zed.pCom.lastMsgInfo = [];
+    zed.pFlag.HasCalibration = false;
 end
