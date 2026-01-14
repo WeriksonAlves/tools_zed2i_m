@@ -7,6 +7,17 @@ function calib = rGetCalibration(zed)
 
     calib = struct();
 
+    % ------------------------------------------------------------
+    % FAST PATH: return cached calibration if already available
+    % ------------------------------------------------------------
+    if zed.pFlag.HasCalibration && ~isempty(fieldnames(zed.pData.Calibration))
+        calib = zed.pData.Calibration;
+        return;
+    end
+
+    % ------------------------------------------------------------
+    % Safety check
+    % ------------------------------------------------------------
     if ~zed.pFlag.Connected
         zed.pFlag.LastError = 'Not connected. Call rConnect() first.';
         return;
@@ -14,12 +25,16 @@ function calib = rGetCalibration(zed)
 
     msg = [];
 
-    % Prefer last cached message (if any)
+    % ------------------------------------------------------------
+    % Try cached ROS message
+    % ------------------------------------------------------------
     if isfield(zed.pCom, 'lastMsgInfo') && ~isempty(zed.pCom.lastMsgInfo)
         msg = zed.pCom.lastMsgInfo;
     end
 
-    % If no cached message, receive once (blocking up to timeout)
+    % ------------------------------------------------------------
+    % Blocking receive (only if needed)
+    % ------------------------------------------------------------
     if isempty(msg)
         try
             msg = receive(zed.pCom.subInfo, zed.pPar.timeoutSec);
@@ -30,6 +45,9 @@ function calib = rGetCalibration(zed)
         end
     end
 
+    % ------------------------------------------------------------
+    % Parse CameraInfo
+    % ------------------------------------------------------------
     try
         % CameraInfo fields:
         % msg.k (9), msg.d (N), msg.r (9), msg.p (12)
