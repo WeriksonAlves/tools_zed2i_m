@@ -10,23 +10,46 @@ function ok = rGrab(zed)
         return;
     end
 
-    % Grab Image
+    % Grab image and depth independently, so a failure in one stream
+    % does not prevent the other from being updated.
+    okImage = grabImageStream(zed);
+    okDepth = grabDepthStream(zed);
+
+    ok = okImage || okDepth;
+end
+
+% -------------------------------------------------------------------------
+% Local helpers
+% -------------------------------------------------------------------------
+
+function okImage = grabImageStream(zed)
+%grabImageStream Receive and decode RGB image stream.
+
+    okImage = false;
+
     try
         msgImg = receive(zed.pCom.subImage, zed.pPar.timeoutSec);
         zed.pCom.lastMsgImage = msgImg;
-        zed.pData.Image = rosReadImage(msgImg);
-        zed.pFlag.HasImage = true;
-        ok = true;
 
-        zed = updateFps(zed, 'image');
+        zed.pData.Image = rosReadImage(msgImg);
+
+        zed.pFlag.HasImage = true;
+        okImage = true;
+
+        updateFps(zed, 'image');
 
     catch excp
         zed.pData.Metrics.ImageDrops = zed.pData.Metrics.ImageDrops + 1;
         zed.pFlag.HasImage = false;
         zed.pFlag.LastError = ['Image grab failed: ' excp.message];
     end
+end
 
-    % Grab Depth
+function okDepth = grabDepthStream(zed)
+%grabDepthStream Receive and decode depth stream with sanitization.
+
+    okDepth = false;
+
     try
         msgDepth = receive(zed.pCom.subDepth, zed.pPar.timeoutSec);
         zed.pCom.lastMsgDepth = msgDepth;
@@ -34,8 +57,8 @@ function ok = rGrab(zed)
         depth = rosReadImage(msgDepth);
 
         % --- Depth sanitization (safe default) ---
-        depth(~isfinite(depth)) = NaN;      % keep invalid as NaN
-        depth(depth <= 0) = NaN;            % non-positive is invalid for depth
+        depth(~isfinite(depth)) = NaN;   % keep invalid as NaN
+        depth(depth <= 0) = NaN;         % non-positive is invalid for depth
 
         % Optional sanity: keep as single to reduce memory footprint
         if ~isa(depth, 'single')
@@ -44,9 +67,9 @@ function ok = rGrab(zed)
 
         zed.pData.Depth = depth;
         zed.pFlag.HasDepth = true;
-        ok = true;
+        okDepth = true;
 
-        zed = updateFps(zed, 'depth');
+        updateFps(zed, 'depth');
 
     catch excp
         zed.pData.Metrics.DepthDrops = zed.pData.Metrics.DepthDrops + 1;
@@ -55,8 +78,10 @@ function ok = rGrab(zed)
     end
 end
 
-function zed = updateFps(zed, stream)
-    alpha = 0.2;
+function updateFps(zed, stream)
+%updateFps Update FPS estimate for the given stream ('image' or 'depth').
+
+    alpha = 0.2;  % EMA smoothing factor
 
     switch stream
         case 'image'
