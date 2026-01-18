@@ -21,6 +21,11 @@ function rDisconnect(zed)
         zed.pFlag.HasPose = false;
     end
 
+    if isfield(zed.pFlag, "HasPointCloud")
+        zed.pFlag.HasPointCloud = false;
+    end
+
+
 
 end
 
@@ -48,6 +53,10 @@ function clearCommState(zed)
         if isfield(zed.pCom, "subOdom") && ~isempty(zed.pCom.subOdom)
             clear zed.pCom.subOdom;
         end
+        if isfield(zed.pCom, "subPointCloud") && ~isempty(zed.pCom.subPointCloud)
+            clear zed.pCom.subPointCloud;
+        end
+
 
         % Node
         if isfield(zed.pCom, "node") && ~isempty(zed.pCom.node)
@@ -67,6 +76,9 @@ function clearCommState(zed)
     zed.pCom.lastMsgImu   = [];
     zed.pCom.subOdom = [];
     zed.pCom.lastMsgOdom = [];
+    zed.pCom.subPointCloud     = [];
+    zed.pCom.lastMsgPointCloud = [];
+
 
 
 end

@@ -31,6 +31,13 @@ function iControlVariables(zed)
     zed.pCom.subOdom = [];
     zed.pCom.lastMsgOdom = [];
 
+    % -------------------- PointCloud (optional) --------------------
+    zed.pFlag.HasPointCloud = false;
+
+    zed.pData.PointCloud = struct();  % last decoded point cloud snapshot
+
+    zed.pCom.subPointCloud     = [];
+    zed.pCom.lastMsgPointCloud = [];
 
 
     % Minimal metrics

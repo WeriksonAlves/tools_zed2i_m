@@ -46,6 +46,15 @@ function data = rGetSensorData(zed)
         data.Pose = struct();
         data.HasPose = false;
     end
+    % Optional PointCloud snapshot (do NOT auto-fetch; use last decoded if any)
+    if isfield(zed.pData, "PointCloud") && safeFlag(zed.pFlag, "HasPointCloud")
+        data.PointCloud = zed.pData.PointCloud;
+        data.HasPointCloud = true;
+    else
+        data.PointCloud = struct();
+        data.HasPointCloud = false;
+    end
+
 
 
 
@@ -75,6 +84,9 @@ function data = buildDefaultDataStruct(zed)
     data.Imu = zed.rGetImu();
     data.HasPose = safeFlag(zed.pFlag, 'HasPose');
     data.Pose = struct();
+    data.HasPointCloud = safeFlag(zed.pFlag, 'HasPointCloud');
+    data.PointCloud = struct();
+
 
 
     data.Image = [];

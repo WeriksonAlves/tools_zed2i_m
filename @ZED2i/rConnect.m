@@ -63,6 +63,13 @@ function rConnect(zed)
             zed.pFlag.HasPose = false;
         end
 
+        % Optional subscribers
+        if isfield(zed.pPar, "enablePointCloud") && zed.pPar.enablePointCloud
+            zed.pCom.subPointCloud = createSubscriber( ...
+                zed, zed.pPar.topicPointCloud, "sensor_msgs/PointCloud2");
+            zed.pFlag.HasPointCloud = false;
+        end
+
 
         % Initialize flags after successful connection
         zed.pFlag.Connected      = true;
@@ -112,6 +119,10 @@ function resetCommState(zed)
         if isfield(zed.pCom, "subOdom") && ~isempty(zed.pCom.subOdom)
             clear zed.pCom.subOdom;
         end
+        if isfield(zed.pCom, "subPointCloud") && ~isempty(zed.pCom.subPointCloud)
+            clear zed.pCom.subPointCloud;
+        end
+
 
 
         % Clear node if it exists
@@ -132,6 +143,9 @@ function resetCommState(zed)
     zed.pCom.lastMsgImu = [];
     zed.pCom.subOdom = [];
     zed.pCom.lastMsgOdom = [];
+    zed.pCom.subPointCloud     = [];
+    zed.pCom.lastMsgPointCloud = [];
+
 
 
 end
