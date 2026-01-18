@@ -13,6 +13,10 @@ function rDisconnect(zed)
     if isfield(zed.pFlag, "HasCalibration")
         zed.pFlag.HasCalibration = false;
     end
+    if isfield(zed.pFlag, "HasImu")
+        zed.pFlag.HasImu = false;
+    end
+
 end
 
 % -------------------------------------------------------------------------
@@ -32,6 +36,9 @@ function clearCommState(zed)
         if isfield(zed.pCom, "subInfo") && ~isempty(zed.pCom.subInfo)
             clear zed.pCom.subInfo;
         end
+        if isfield(zed.pCom, "subImu") && ~isempty(zed.pCom.subImu)
+            clear zed.pCom.subImu;
+        end
 
         % Node
         if isfield(zed.pCom, "node") && ~isempty(zed.pCom.node)
@@ -47,4 +54,7 @@ function clearCommState(zed)
     zed.pCom.lastMsgImage = [];
     zed.pCom.lastMsgDepth = [];
     zed.pCom.lastMsgInfo  = [];
+    zed.pCom.subImu       = [];
+    zed.pCom.lastMsgImu   = [];
+
 end

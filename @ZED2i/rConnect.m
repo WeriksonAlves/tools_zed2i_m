@@ -49,6 +49,13 @@ function rConnect(zed)
         zed.pCom.subInfo = createSubscriber( ...
             zed, zed.pPar.topicCameraInfo, "sensor_msgs/CameraInfo");
 
+        % Optional subscribers
+        if isfield(zed.pPar, "enableImu") && zed.pPar.enableImu
+            zed.pCom.subImu = createSubscriber( ...
+                zed, zed.pPar.topicImu, "sensor_msgs/Imu");
+            zed.pFlag.HasImu = false;
+        end
+
         % Initialize flags after successful connection
         zed.pFlag.Connected      = true;
         zed.pFlag.HasImage       = false;
@@ -90,6 +97,11 @@ function resetCommState(zed)
             clear zed.pCom.subInfo;
         end
 
+        if isfield(zed.pCom, "subImu") && ~isempty(zed.pCom.subImu)
+            clear zed.pCom.subImu;
+        end
+
+
         % Clear node if it exists
         if isfield(zed.pCom, "node") && ~isempty(zed.pCom.node)
             clear zed.pCom.node;
@@ -104,6 +116,9 @@ function resetCommState(zed)
     zed.pCom.lastMsgImage = [];
     zed.pCom.lastMsgDepth = [];
     zed.pCom.lastMsgInfo  = [];
+    zed.pCom.subImu     = [];
+    zed.pCom.lastMsgImu = [];
+
 end
 
 function sub = createSubscriber(zed, topic, msgType)

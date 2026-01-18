@@ -27,6 +27,17 @@ function data = rGetSensorData(zed)
     data.Image = zed.rGetImage();
     data.Depth = zed.rGetDepth();
 
+    % Optional IMU snapshot (lazy)
+    if isfield(zed.pPar, 'enableImu') && zed.pPar.enableImu
+        imu = zed.rGetImu();
+        data.Imu = imu;
+        data.HasImu = safeFlag(zed.pFlag, 'HasImu');
+    else
+        data.Imu = struct();
+        data.HasImu = false;
+    end
+
+
     % Lazy calibration (use cached if available; otherwise attempt once)
     [data.Calibration, data.HasCalibration] = getCalibrationSnapshot(zed);
 
@@ -49,6 +60,8 @@ function data = buildDefaultDataStruct(zed)
     data.HasImage = false;
     data.HasDepth = false;
     data.HasCalibration = safeFlag(zed.pFlag, 'HasCalibration');
+    data.HasImu = safeFlag(zed.pFlag, 'HasImu');
+    data.Imu = zed.rGetImu();
 
     data.Image = [];
     data.Depth = [];

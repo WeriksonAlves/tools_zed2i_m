@@ -21,8 +21,10 @@ function iParameters(zed)
     zed.pPar.topicPointCloud = "/zed/zed_node/point_cloud/cloud_registered";
     zed.pPar.enablePointCloud = true;
 
-    zed.pPar.topicImu   = "/zed/zed_node/imu/data";
-    zed.pPar.enableImu  = false;
+    % Optional topics (not used yet in the current implementation)
+    zed.pPar.topicImu  = "/zed/zed_node/imu/data";
+    zed.pPar.enableImu = false;  % keep default false for v1.0.0 compatibility
+
 
     zed.pPar.topicOdom  = "/zed/zed_node/odom";
     zed.pPar.topicPose  = "/zed/zed_node/pose";

@@ -15,6 +15,15 @@ function iControlVariables(zed)
     zed.pData.LastGrabTicDepth = [];
     zed.pData.Calibration = struct();
 
+    % -------------------- IMU (optional) --------------------
+    zed.pFlag.HasImu = false;
+
+    zed.pData.Imu = struct();  % last decoded IMU snapshot
+
+    zed.pCom.subImu = [];
+    zed.pCom.lastMsgImu = [];
+
+
     % Minimal metrics
     zed.pData.Metrics = struct();
     zed.pData.Metrics.ImageFps = 0;
