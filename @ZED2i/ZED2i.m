@@ -83,17 +83,18 @@ function applyNameValueOverrides(obj, varargin)
             "Name-Value arguments must come in pairs.");
     end
 
-    validNames = { ...
+    % String array, não cell:
+    validNames = [ ...
         "timeoutSec", ...
         "fpsAlpha", ...
         "nodeName", ...
         "topicImage", ...
         "topicDepth", ...
         "topicCameraInfo" ...
-    };
+    ];
 
     for k = 1:2:numel(varargin)
-        name = varargin{k};
+        name  = varargin{k};
         value = varargin{k+1};
 
         if ~(ischar(name) || isstring(name))
@@ -103,9 +104,8 @@ function applyNameValueOverrides(obj, varargin)
 
         nameStr = string(name);
 
-        % Validate name against known list
-        idx = find(nameStr == validNames, 1);
-        if isempty(idx)
+        % Valida nome
+        if ~any(nameStr == validNames)
             error("ZED2i:Constructor:UnknownParameter", ...
                 "Unknown parameter name '%s'.", nameStr);
         end
@@ -113,14 +113,19 @@ function applyNameValueOverrides(obj, varargin)
         switch nameStr
             case "timeoutSec"
                 obj.pPar.timeoutSec = double(value);
+
             case "fpsAlpha"
                 obj.pPar.fpsAlpha = double(value);
+
             case "nodeName"
                 obj.pPar.nodeName = string(value);
+
             case "topicImage"
                 obj.pPar.topicImage = string(value);
+
             case "topicDepth"
                 obj.pPar.topicDepth = string(value);
+
             case "topicCameraInfo"
                 obj.pPar.topicCameraInfo = string(value);
         end
