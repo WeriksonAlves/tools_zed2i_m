@@ -81,7 +81,8 @@ end
 function updateFps(zed, stream)
 %updateFps Update FPS estimate for the given stream ('image' or 'depth').
 
-    alpha = 0.2;  % EMA smoothing factor
+    % Exponential moving average smoothing factor configured in iParameters
+    alpha = zed.pPar.fpsAlpha;
 
     switch stream
         case 'image'
