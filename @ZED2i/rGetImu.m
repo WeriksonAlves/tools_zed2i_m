@@ -24,6 +24,7 @@ function imu = rGetImu(zed)
     end
 
     msg = [];
+    hasNewMsg = false;
 
     % ---------------------------------------------------------------------
     % Always try to read a new message
@@ -31,6 +32,7 @@ function imu = rGetImu(zed)
     try
         msg = receive(zed.pCom.subImu, zed.pPar.timeoutSec);
         zed.pCom.lastMsgImu = msg;
+        hasNewMsg = true;
     catch excp
         % If timeout/error, try to reuse last valid message
         if isfield(zed.pCom, "lastMsgImu") && ~isempty(zed.pCom.lastMsgImu)

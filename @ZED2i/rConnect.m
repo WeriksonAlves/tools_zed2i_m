@@ -56,6 +56,14 @@ function rConnect(zed)
             zed.pFlag.HasImu = false;
         end
 
+        % Optional subscribers
+        if isfield(zed.pPar, "enablePose") && zed.pPar.enablePose
+            zed.pCom.subOdom = createSubscriber( ...
+                zed, zed.pPar.topicOdom, "nav_msgs/Odometry");
+            zed.pFlag.HasPose = false;
+        end
+
+
         % Initialize flags after successful connection
         zed.pFlag.Connected      = true;
         zed.pFlag.HasImage       = false;
@@ -101,6 +109,10 @@ function resetCommState(zed)
             clear zed.pCom.subImu;
         end
 
+        if isfield(zed.pCom, "subOdom") && ~isempty(zed.pCom.subOdom)
+            clear zed.pCom.subOdom;
+        end
+
 
         % Clear node if it exists
         if isfield(zed.pCom, "node") && ~isempty(zed.pCom.node)
@@ -118,6 +130,9 @@ function resetCommState(zed)
     zed.pCom.lastMsgInfo  = [];
     zed.pCom.subImu     = [];
     zed.pCom.lastMsgImu = [];
+    zed.pCom.subOdom = [];
+    zed.pCom.lastMsgOdom = [];
+
 
 end
 

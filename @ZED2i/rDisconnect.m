@@ -17,6 +17,11 @@ function rDisconnect(zed)
         zed.pFlag.HasImu = false;
     end
 
+    if isfield(zed.pFlag, "HasPose")
+        zed.pFlag.HasPose = false;
+    end
+
+
 end
 
 % -------------------------------------------------------------------------
@@ -40,6 +45,10 @@ function clearCommState(zed)
             clear zed.pCom.subImu;
         end
 
+        if isfield(zed.pCom, "subOdom") && ~isempty(zed.pCom.subOdom)
+            clear zed.pCom.subOdom;
+        end
+
         % Node
         if isfield(zed.pCom, "node") && ~isempty(zed.pCom.node)
             clear zed.pCom.node;
@@ -56,5 +65,8 @@ function clearCommState(zed)
     zed.pCom.lastMsgInfo  = [];
     zed.pCom.subImu       = [];
     zed.pCom.lastMsgImu   = [];
+    zed.pCom.subOdom = [];
+    zed.pCom.lastMsgOdom = [];
+
 
 end

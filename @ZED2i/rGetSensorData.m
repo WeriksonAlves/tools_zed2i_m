@@ -37,6 +37,17 @@ function data = rGetSensorData(zed)
         data.HasImu = false;
     end
 
+    % Optional Pose snapshot (lazy)
+    if isfield(zed.pPar, 'enablePose') && zed.pPar.enablePose
+        p = zed.rGetPose();
+        data.Pose = p;
+        data.HasPose = safeFlag(zed.pFlag, 'HasPose');
+    else
+        data.Pose = struct();
+        data.HasPose = false;
+    end
+
+
 
     % Lazy calibration (use cached if available; otherwise attempt once)
     [data.Calibration, data.HasCalibration] = getCalibrationSnapshot(zed);
@@ -62,6 +73,9 @@ function data = buildDefaultDataStruct(zed)
     data.HasCalibration = safeFlag(zed.pFlag, 'HasCalibration');
     data.HasImu = safeFlag(zed.pFlag, 'HasImu');
     data.Imu = zed.rGetImu();
+    data.HasPose = safeFlag(zed.pFlag, 'HasPose');
+    data.Pose = struct();
+
 
     data.Image = [];
     data.Depth = [];

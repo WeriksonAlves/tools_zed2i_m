@@ -23,6 +23,15 @@ function iControlVariables(zed)
     zed.pCom.subImu = [];
     zed.pCom.lastMsgImu = [];
 
+    % -------------------- Pose/Odom (optional) --------------------
+    zed.pFlag.HasPose = false;
+
+    zed.pData.Pose = struct();  % last decoded pose snapshot
+
+    zed.pCom.subOdom = [];
+    zed.pCom.lastMsgOdom = [];
+
+
 
     % Minimal metrics
     zed.pData.Metrics = struct();
