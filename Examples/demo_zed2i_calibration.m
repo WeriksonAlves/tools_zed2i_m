@@ -1,6 +1,7 @@
 % demo_zed2i_calibration.m
 % Fetch and display ZED2i camera calibration and MATLAB intrinsics from ROS2.
 
+clearvars;
 close all;
 clc;
 

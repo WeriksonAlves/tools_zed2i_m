@@ -1,72 +1,109 @@
 % demo_zed2i_rgbd.m
-% RGB + Depth preview (minimal, stable).
+% RGB + Depth preview.
 
-clearvars
-clear all
-close all
-clc
+clearvars;
+close all;
+clc;
 
+% -------------------------------------------------------------------------
+% Create ZED2i object and guarantee proper cleanup
+% -------------------------------------------------------------------------
 zed = ZED2i();
+cleanupObj = onCleanup(@() zed.rDisconnect());
+
 zed.rConnect();
 
-hFig = figure('Name', 'ZED2i RGB-D Preview', 'NumberTitle', 'off');
-t0 = tic;
-seconds = 30;
+% -------------------------------------------------------------------------
+% Visualization and timing parameters
+% -------------------------------------------------------------------------
+t_max      = 30;   % [s] total demo time
+target_fps = 15;   % desired preview FPS
 
-while ishandle(hFig) && toc(t0) < seconds
+% -------------------------------------------------------------------------
+% Pre-create figure and graphics objects (NO clf/subplot/colorbar per frame)
+% -------------------------------------------------------------------------
+hFig = figure('Name', 'ZED2i RGB-D Preview', 'NumberTitle', 'off');
+
+ax1 = subplot(1, 2, 1);
+hImg = imshow(zeros(360, 640, 3, 'uint8'), 'Parent', ax1);
+title(ax1, 'RGB');
+
+ax2 = subplot(1, 2, 2);
+hDepth = imagesc(zeros(360, 640, 'single'), 'Parent', ax2);
+axis(ax2, 'image');
+axis(ax2, 'off');
+colormap(ax2, turbo);
+cb = colorbar(ax2);
+cb.Label.String = 'Depth (m)';
+title(ax2, 'Depth');
+
+% Initial depth scaling in meters
+lo = 0.3;
+hi = 6.0;
+set(ax2, 'CLim', [lo hi]);
+
+% -------------------------------------------------------------------------
+% Main loop
+% -------------------------------------------------------------------------
+tc = tic;          % frame pacing timer
+t  = tic;          % total demo timer
+frameCount = 0;
+
+while ishandle(hFig) && toc(t) < t_max
+
+    % Simple FPS limiter
+    if toc(tc) < 1 / target_fps
+        pause(0.001);
+        continue;
+    end
+    tc = tic;
+
+    cycleTic = tic;
+
     ok = zed.rGrab();
     if ~ok
-        pause(0.01);
+        % Se nenhum stream foi atualizado, segue para próxima iteração
         continue;
     end
 
+    % -------------------- RGB --------------------
     img = zed.rGetImage();
-    [depth, mask] = zed.rGetDepth();
-
-    clf;
-
-    subplot(1,2,1);
     if ~isempty(img)
-        imshow(img);
-        title(sprintf('RGB | FPS: %.1f | Drops: %d', ...
+        set(hImg, 'CData', img);
+        title(ax1, sprintf('RGB | FPS: %.1f | Drops: %d', ...
             zed.pData.Metrics.ImageFps, zed.pData.Metrics.ImageDrops));
-    else
-        axis off;
-        text(0.1, 0.5, 'No RGB');
     end
 
-    subplot(1,2,2);
+    % -------------------- Depth --------------------
+    [depth, mask] = zed.rGetDepth(); %#ok<NASGU>
     if ~isempty(depth)
+        set(hDepth, 'CData', depth);
 
-        d = depth(:);
-        d = d(isfinite(d) & d > 0);
-
-        if ~isempty(d)
-            lo = prctile(d, 2);
-            hi = prctile(d, 98);
-
-            imagesc(depth, [lo hi]);   % linear scaling, in meters
-            axis image off;
-            colormap(gca, turbo);
-
-            cb = colorbar;
-            cb.Label.String = 'Depth (m)';
-
-            title(sprintf('Depth | Range: [%.2f, %.2f] m | FPS: %.1f', ...
-                lo, hi, zed.pData.Metrics.DepthFps));
-        else
-            axis off;
-            text(0.1, 0.5, 'Depth has no valid values');
+        % Update contrast every 10 frames (cheap and stable)
+        if mod(frameCount, 10) == 0
+            v = depth(isfinite(depth) & depth > 0);
+            if ~isempty(v)
+                lo = prctile(v, 2);
+                hi = prctile(v, 98);
+                if hi <= lo
+                    hi = lo + 1e-3;
+                end
+                set(ax2, 'CLim', [lo hi]);
+            end
         end
 
-    else
-        axis off;
-        text(0.1, 0.5, 'No Depth');
+        title(ax2, sprintf('Depth | Range: [%.2f, %.2f] m | FPS: %.1f', ...
+            lo, hi, zed.pData.Metrics.DepthFps));
     end
 
+    drawnow limitrate nocallbacks;
 
+    frameCount = frameCount + 1;
 
-    drawnow;
+    % Optional: log de tempo de ciclo (a cada 30 frames, para não poluir)
+    if mod(frameCount, 30) == 0
+        fprintf('Cycle time (avg over last frame): %.3f s\n', toc(cycleTic));
+    end
 end
 
-zed.rDisconnect();
+% rDisconnect será chamado automaticamente por cleanupObj
