@@ -33,6 +33,7 @@ classdef ZED2i < handle
             %   zed = ZED2i(id);
             %   zed = ZED2i("timeoutSec", 1.0, "fpsAlpha", 0.1);
             %   zed = ZED2i(id, "nodeName", "custom_node");
+            %   zed = ZED2i("enableImu", true);  % enable IMU subscriber
             %
             % ID is currently stored for lab conventions, but not used
             % internally by the ROS2 integration.
@@ -90,7 +91,9 @@ function applyNameValueOverrides(obj, varargin)
         "nodeName", ...
         "topicImage", ...
         "topicDepth", ...
-        "topicCameraInfo" ...
+        "topicCameraInfo", ...
+        "enableImu", ...
+        "topicImu" ...
     ];
 
     for k = 1:2:numel(varargin)
@@ -128,6 +131,12 @@ function applyNameValueOverrides(obj, varargin)
 
             case "topicCameraInfo"
                 obj.pPar.topicCameraInfo = string(value);
+
+            case "enableImu"
+                obj.pPar.enableImu = logical(value);
+
+            case "topicImu"
+                obj.pPar.topicImu = string(value);
         end
     end
 end

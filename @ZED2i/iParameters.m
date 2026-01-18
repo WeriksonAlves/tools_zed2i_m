@@ -4,6 +4,8 @@ function iParameters(zed)
 % This method is responsible only for setting configuration values
 % (topics, timeouts, behavior flags). No ROS calls are made here.
 
+    zed.pPar.fps = 1/30;  % default expected FPS
+
     % ---------------------------------------------------------------------
     % Core ROS 2 topics (currently used by the implementation)
     % ---------------------------------------------------------------------
