@@ -27,6 +27,37 @@ function data = rGetSensorData(zed)
     data.Image = zed.rGetImage();
     data.Depth = zed.rGetDepth();
 
+    % Optional IMU snapshot (lazy)
+    if isfield(zed.pPar, 'enableImu') && zed.pPar.enableImu
+        imu = zed.rGetImu();
+        data.Imu = imu;
+        data.HasImu = safeFlag(zed.pFlag, 'HasImu');
+    else
+        data.Imu = struct();
+        data.HasImu = false;
+    end
+
+    % Optional Pose snapshot (lazy)
+    if isfield(zed.pPar, 'enablePose') && zed.pPar.enablePose
+        p = zed.rGetPose();
+        data.Pose = p;
+        data.HasPose = safeFlag(zed.pFlag, 'HasPose');
+    else
+        data.Pose = struct();
+        data.HasPose = false;
+    end
+    % Optional PointCloud snapshot (do NOT auto-fetch; use last decoded if any)
+    if isfield(zed.pData, "PointCloud") && safeFlag(zed.pFlag, "HasPointCloud")
+        data.PointCloud = zed.pData.PointCloud;
+        data.HasPointCloud = true;
+    else
+        data.PointCloud = struct();
+        data.HasPointCloud = false;
+    end
+
+
+
+
     % Lazy calibration (use cached if available; otherwise attempt once)
     [data.Calibration, data.HasCalibration] = getCalibrationSnapshot(zed);
 
@@ -49,6 +80,14 @@ function data = buildDefaultDataStruct(zed)
     data.HasImage = false;
     data.HasDepth = false;
     data.HasCalibration = safeFlag(zed.pFlag, 'HasCalibration');
+    data.HasImu = safeFlag(zed.pFlag, 'HasImu');
+    data.Imu = zed.rGetImu();
+    data.HasPose = safeFlag(zed.pFlag, 'HasPose');
+    data.Pose = struct();
+    data.HasPointCloud = safeFlag(zed.pFlag, 'HasPointCloud');
+    data.PointCloud = struct();
+
+
 
     data.Image = [];
     data.Depth = [];

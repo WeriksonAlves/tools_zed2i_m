@@ -4,6 +4,8 @@ function iParameters(zed)
 % This method is responsible only for setting configuration values
 % (topics, timeouts, behavior flags). No ROS calls are made here.
 
+    zed.pPar.fps = 1/30;  % default expected FPS
+
     % ---------------------------------------------------------------------
     % Core ROS 2 topics (currently used by the implementation)
     % ---------------------------------------------------------------------
@@ -21,12 +23,19 @@ function iParameters(zed)
     zed.pPar.topicPointCloud = "/zed/zed_node/point_cloud/cloud_registered";
     zed.pPar.enablePointCloud = true;
 
-    zed.pPar.topicImu   = "/zed/zed_node/imu/data";
-    zed.pPar.enableImu  = false;
+    % Optional topics (not used yet in the current implementation)
+    zed.pPar.topicImu  = "/zed/zed_node/imu/data";
+    zed.pPar.enableImu = false;  % keep default false for v1.0.0 compatibility
+
 
     zed.pPar.topicOdom  = "/zed/zed_node/odom";
     zed.pPar.topicPose  = "/zed/zed_node/pose";
     zed.pPar.enablePose = false;
+
+    % Optional topics (not used yet in the current implementation)
+    zed.pPar.topicPointCloud  = "/zed/zed_node/point_cloud/cloud_registered";
+    zed.pPar.enablePointCloud = false;  % default: off (para não pesar)
+
 
     % Legacy/ROS1-related fields (kept for lab compatibility; not used in ROS2)
     zed.pPar.rosMasterURI  = "http://localhost:11311";

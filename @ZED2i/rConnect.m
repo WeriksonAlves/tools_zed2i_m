@@ -49,6 +49,28 @@ function rConnect(zed)
         zed.pCom.subInfo = createSubscriber( ...
             zed, zed.pPar.topicCameraInfo, "sensor_msgs/CameraInfo");
 
+        % Optional subscribers
+        if isfield(zed.pPar, "enableImu") && zed.pPar.enableImu
+            zed.pCom.subImu = createSubscriber( ...
+                zed, zed.pPar.topicImu, "sensor_msgs/Imu");
+            zed.pFlag.HasImu = false;
+        end
+
+        % Optional subscribers
+        if isfield(zed.pPar, "enablePose") && zed.pPar.enablePose
+            zed.pCom.subOdom = createSubscriber( ...
+                zed, zed.pPar.topicOdom, "nav_msgs/Odometry");
+            zed.pFlag.HasPose = false;
+        end
+
+        % Optional subscribers
+        if isfield(zed.pPar, "enablePointCloud") && zed.pPar.enablePointCloud
+            zed.pCom.subPointCloud = createSubscriber( ...
+                zed, zed.pPar.topicPointCloud, "sensor_msgs/PointCloud2");
+            zed.pFlag.HasPointCloud = false;
+        end
+
+
         % Initialize flags after successful connection
         zed.pFlag.Connected      = true;
         zed.pFlag.HasImage       = false;
@@ -90,6 +112,19 @@ function resetCommState(zed)
             clear zed.pCom.subInfo;
         end
 
+        if isfield(zed.pCom, "subImu") && ~isempty(zed.pCom.subImu)
+            clear zed.pCom.subImu;
+        end
+
+        if isfield(zed.pCom, "subOdom") && ~isempty(zed.pCom.subOdom)
+            clear zed.pCom.subOdom;
+        end
+        if isfield(zed.pCom, "subPointCloud") && ~isempty(zed.pCom.subPointCloud)
+            clear zed.pCom.subPointCloud;
+        end
+
+
+
         % Clear node if it exists
         if isfield(zed.pCom, "node") && ~isempty(zed.pCom.node)
             clear zed.pCom.node;
@@ -104,6 +139,15 @@ function resetCommState(zed)
     zed.pCom.lastMsgImage = [];
     zed.pCom.lastMsgDepth = [];
     zed.pCom.lastMsgInfo  = [];
+    zed.pCom.subImu     = [];
+    zed.pCom.lastMsgImu = [];
+    zed.pCom.subOdom = [];
+    zed.pCom.lastMsgOdom = [];
+    zed.pCom.subPointCloud     = [];
+    zed.pCom.lastMsgPointCloud = [];
+
+
+
 end
 
 function sub = createSubscriber(zed, topic, msgType)

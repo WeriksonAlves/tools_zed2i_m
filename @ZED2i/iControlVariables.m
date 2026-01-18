@@ -15,6 +15,31 @@ function iControlVariables(zed)
     zed.pData.LastGrabTicDepth = [];
     zed.pData.Calibration = struct();
 
+    % -------------------- IMU (optional) --------------------
+    zed.pFlag.HasImu = false;
+
+    zed.pData.Imu = struct();  % last decoded IMU snapshot
+
+    zed.pCom.subImu = [];
+    zed.pCom.lastMsgImu = [];
+
+    % -------------------- Pose/Odom (optional) --------------------
+    zed.pFlag.HasPose = false;
+
+    zed.pData.Pose = struct();  % last decoded pose snapshot
+
+    zed.pCom.subOdom = [];
+    zed.pCom.lastMsgOdom = [];
+
+    % -------------------- PointCloud (optional) --------------------
+    zed.pFlag.HasPointCloud = false;
+
+    zed.pData.PointCloud = struct();  % last decoded point cloud snapshot
+
+    zed.pCom.subPointCloud     = [];
+    zed.pCom.lastMsgPointCloud = [];
+
+
     % Minimal metrics
     zed.pData.Metrics = struct();
     zed.pData.Metrics.ImageFps = 0;

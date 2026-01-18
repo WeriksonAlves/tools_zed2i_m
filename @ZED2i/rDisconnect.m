@@ -13,6 +13,20 @@ function rDisconnect(zed)
     if isfield(zed.pFlag, "HasCalibration")
         zed.pFlag.HasCalibration = false;
     end
+    if isfield(zed.pFlag, "HasImu")
+        zed.pFlag.HasImu = false;
+    end
+
+    if isfield(zed.pFlag, "HasPose")
+        zed.pFlag.HasPose = false;
+    end
+
+    if isfield(zed.pFlag, "HasPointCloud")
+        zed.pFlag.HasPointCloud = false;
+    end
+
+
+
 end
 
 % -------------------------------------------------------------------------
@@ -32,6 +46,17 @@ function clearCommState(zed)
         if isfield(zed.pCom, "subInfo") && ~isempty(zed.pCom.subInfo)
             clear zed.pCom.subInfo;
         end
+        if isfield(zed.pCom, "subImu") && ~isempty(zed.pCom.subImu)
+            clear zed.pCom.subImu;
+        end
+
+        if isfield(zed.pCom, "subOdom") && ~isempty(zed.pCom.subOdom)
+            clear zed.pCom.subOdom;
+        end
+        if isfield(zed.pCom, "subPointCloud") && ~isempty(zed.pCom.subPointCloud)
+            clear zed.pCom.subPointCloud;
+        end
+
 
         % Node
         if isfield(zed.pCom, "node") && ~isempty(zed.pCom.node)
@@ -47,4 +72,13 @@ function clearCommState(zed)
     zed.pCom.lastMsgImage = [];
     zed.pCom.lastMsgDepth = [];
     zed.pCom.lastMsgInfo  = [];
+    zed.pCom.subImu       = [];
+    zed.pCom.lastMsgImu   = [];
+    zed.pCom.subOdom = [];
+    zed.pCom.lastMsgOdom = [];
+    zed.pCom.subPointCloud     = [];
+    zed.pCom.lastMsgPointCloud = [];
+
+
+
 end
