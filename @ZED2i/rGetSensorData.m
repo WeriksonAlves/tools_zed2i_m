@@ -1,79 +1,135 @@
 function data = rGetSensorData(zed)
 %rGetSensorData Aggregate sensor data in a lab-friendly format.
 %
-% Returns a struct with:
-%   - Image (RGB)
-%   - Depth (meters, single)
-%   - Calibration (struct with K, D, etc.)
-%   - Flags: Connected/HasImage/HasDepth/HasCalibration
-%   - Metrics: FPS/Drops
-%   - Timestamp: local MATLAB time (datetime)
-%   - LastError
+% Returns a struct with stable fields:
+%   Timestamp (datetime)
+%   Connected (logical)
+%   HasImage, HasDepth, HasCalibration (logical)
+%   Image, Depth
+%   Calibration (struct)
+%   Metrics (struct)
+%   LastError (char/string)
 
-    data = struct();
-
-    % -------------------- Basic flags --------------------
-    data.Timestamp = datetime('now');
-    data.Connected = logical(zed.pFlag.Connected);
+    data = buildDefaultDataStruct(zed);
 
     if ~zed.pFlag.Connected
-        data.HasImage = false;
-        data.HasDepth = false;
-        data.HasCalibration = logical(isfield(zed.pFlag, 'HasCalibration') && zed.pFlag.HasCalibration);
-
-        data.Image = [];
-        data.Depth = [];
-        data.Calibration = struct();
-
-        data.Metrics = safeGetMetrics(zed);
         data.LastError = 'Not connected. Call rConnect() first.';
         return;
     end
 
-    % -------------------- Grab streams --------------------
-    ok = zed.rGrab(); %#ok<NASGU>
+    % Grab streams (updates internal buffers and flags)
+    zed.rGrab();
 
-    data.HasImage = logical(isfield(zed.pFlag, 'HasImage') && zed.pFlag.HasImage);
-    data.HasDepth = logical(isfield(zed.pFlag, 'HasDepth') && zed.pFlag.HasDepth);
+    % Copy buffers (lab-friendly snapshot)
+    data.HasImage = safeFlag(zed.pFlag, 'HasImage');
+    data.HasDepth = safeFlag(zed.pFlag, 'HasDepth');
 
     data.Image = zed.rGetImage();
     data.Depth = zed.rGetDepth();
 
-    % -------------------- Calibration (lazy) --------------------
-    if ~isfield(zed.pFlag, 'HasCalibration') || ~zed.pFlag.HasCalibration
-        % Try to fetch once (uses cache if available)
-        calib = zed.rGetCalibration();
-        if ~isempty(fieldnames(calib))
-            data.Calibration = calib;
-        else
-            data.Calibration = struct();
-        end
-    else
-        data.Calibration = zed.pData.Calibration;
-    end
-    data.HasCalibration = logical(isfield(zed.pFlag, 'HasCalibration') && zed.pFlag.HasCalibration);
+    % Lazy calibration (use cached if available; otherwise attempt once)
+    [data.Calibration, data.HasCalibration] = getCalibrationSnapshot(zed);
 
-    % -------------------- Metrics & errors --------------------
+    % Metrics + last error
     data.Metrics = safeGetMetrics(zed);
+    data.LastError = safeLastError(zed);
+end
 
-    if isfield(zed.pFlag, 'LastError')
-        data.LastError = zed.pFlag.LastError;
-    else
-        data.LastError = '';
+% -------------------------------------------------------------------------
+% Local helpers
+% -------------------------------------------------------------------------
+
+function data = buildDefaultDataStruct(zed)
+%buildDefaultDataStruct Create a deterministic output struct shape.
+
+    data = struct();
+    data.Timestamp = datetime('now');
+
+    data.Connected = safeFlag(zed.pFlag, 'Connected');
+    data.HasImage = false;
+    data.HasDepth = false;
+    data.HasCalibration = safeFlag(zed.pFlag, 'HasCalibration');
+
+    data.Image = [];
+    data.Depth = [];
+    data.Calibration = struct();
+    data.Metrics = safeGetMetrics(zed);
+    data.LastError = safeLastError(zed);
+end
+
+function value = safeFlag(flags, fieldName)
+%safeFlag Return a logical flag field if available, otherwise false.
+
+    value = false;
+
+    if isstruct(flags) && isfield(flags, fieldName)
+        value = logical(flags.(fieldName));
+    end
+end
+
+function err = safeLastError(zed)
+%safeLastError Return the last error string if available.
+
+    err = '';
+
+    if isfield(zed, 'pFlag') && isstruct(zed.pFlag) && isfield(zed.pFlag, 'LastError')
+        err = zed.pFlag.LastError;
+    end
+end
+
+function [calib, hasCalib] = getCalibrationSnapshot(zed)
+%getCalibrationSnapshot Return calibration struct and flag.
+%
+% Prefers cached calibration if available. Otherwise attempts a single fetch.
+% Never throws: returns empty struct on failure.
+
+    calib = struct();
+    hasCalib = safeFlag(zed.pFlag, 'HasCalibration');
+
+    if hasCalib && isfield(zed.pData, 'Calibration') && ~isempty(fieldnames(zed.pData.Calibration))
+        calib = zed.pData.Calibration;
+        return;
+    end
+
+    % Attempt once (rGetCalibration already caches on success)
+    try
+        calibTry = zed.rGetCalibration();
+        if ~isempty(fieldnames(calibTry))
+            calib = calibTry;
+            hasCalib = true;
+        end
+    catch
+        % Keep defaults on failure (no throw)
+        hasCalib = false;
+        calib = struct();
     end
 end
 
 function metrics = safeGetMetrics(zed)
-    metrics = struct();
+%safeGetMetrics Return metrics struct with stable fields.
 
-    if isfield(zed, 'pData') && isfield(zed.pData, 'Metrics')
-        metrics = zed.pData.Metrics;
-        return;
+    metrics = struct( ...
+        'ImageFps', 0, ...
+        'DepthFps', 0, ...
+        'ImageDrops', 0, ...
+        'DepthDrops', 0 ...
+    );
+
+    if isfield(zed, 'pData') && isstruct(zed.pData) && isfield(zed.pData, 'Metrics')
+        src = zed.pData.Metrics;
+
+        % Copy only known fields (stable output contract)
+        metrics = copyIfField(metrics, src, 'ImageFps');
+        metrics = copyIfField(metrics, src, 'DepthFps');
+        metrics = copyIfField(metrics, src, 'ImageDrops');
+        metrics = copyIfField(metrics, src, 'DepthDrops');
     end
+end
 
-    % Fallback defaults if Metrics is missing
-    metrics.ImageFps = 0;
-    metrics.DepthFps = 0;
-    metrics.ImageDrops = 0;
-    metrics.DepthDrops = 0;
+function dst = copyIfField(dst, src, fieldName)
+%copyIfField Copy a field from src to dst if it exists.
+
+    if isstruct(src) && isfield(src, fieldName)
+        dst.(fieldName) = src.(fieldName);
+    end
 end
