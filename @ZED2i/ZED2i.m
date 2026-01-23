@@ -1,13 +1,15 @@
 classdef ZED2i < handle
-    %ZED2i Minimal ROS2 wrapper for ZED2i image stream (MATLAB R2025a).
+    %ZED2i Minimal ROS2 wrapper for ZED2i (MATLAB R2025a).
     %
     % Minimal API (lab-style):
     %   - rConnect()
-    %   - rGrab()
     %   - rGetImage()
     %   - rGetDepth()
     %   - rGetCalibration()
     %   - rGetSensorData()
+    %   - rGetImu()            % opcional, se enableImu = true
+    %   - rGetPose()           % opcional, se enablePose = true
+    %   - rGetPointCloud()     % opcional, se enablePointCloud = true
     %   - rDisconnect()
     %
     % Internal organization:
@@ -28,41 +30,41 @@ classdef ZED2i < handle
         function obj = ZED2i(id, varargin)
             %ZED2i Constructor.
             %
-            % Usage:
+            % Usage examples:
             %   zed = ZED2i();
-            %   zed = ZED2i(id);
+            %   zed = ZED2i(1);
             %   zed = ZED2i("timeoutSec", 1.0, "fpsAlpha", 0.1);
-            %   zed = ZED2i(id, "nodeName", "custom_node");
-            %   zed = ZED2i("enableImu", true);  % enable IMU subscriber
+            %   zed = ZED2i(1, "nodeName", "custom_node");
+            %   zed = ZED2i("enableImu", true, "enablePose", true);
             %
-            % ID is currently stored for lab conventions, but not used
-            % internally by the ROS2 integration.
+            % ID é mantido por convenção de laboratório, mas não é usado
+            % diretamente na integração ROS2.
 
             % -------------------- Handle optional ID --------------------
             if nargin == 0
                 obj.pID = 0;
                 nameValueArgs = {};
             elseif nargin >= 1 && ~ischar(id) && ~isstring(id)
-                % First argument is treated as numeric ID (lab compatibility)
+                % Primeiro argumento é tratado como ID numérico
                 obj.pID = id;
                 nameValueArgs = varargin;
             else
-                % No numeric ID provided; shift all args to Name-Value parsing
+                % Sem ID numérico; todos argumentos vão para Name-Value
                 obj.pID = 0;
                 nameValueArgs = [{id}, varargin];
             end
 
-            % Initialize internal structs
+            % -------------------- Structs internos --------------------
             obj.pPar  = struct();
             obj.pFlag = struct();
             obj.pData = struct();
             obj.pCom  = struct();
 
-            % Default configuration and control variables
+            % -------------------- Configuração padrão --------------------
             obj.iParameters();
             obj.iControlVariables();
 
-            % Apply Name-Value overrides, if any
+            % -------------------- Overrides via Name-Value ----------------
             if ~isempty(nameValueArgs)
                 applyNameValueOverrides(obj, nameValueArgs{:});
             end
@@ -84,12 +86,14 @@ function applyNameValueOverrides(obj, varargin)
             "Name-Value arguments must come in pairs.");
     end
 
-    % String array, não cell:
+    % Lista de parâmetros suportados (mantida em sincronia com iParameters)
     validNames = [ ...
         "timeoutSec", ...
         "fpsAlpha", ...
+        "fps", ...
         "nodeName", ...
         "topicImage", ...
+        "topicImageRight", ...
         "topicDepth", ...
         "topicCameraInfo", ...
         "enableImu", ...
@@ -112,7 +116,6 @@ function applyNameValueOverrides(obj, varargin)
 
         nameStr = string(name);
 
-        % Valida nome
         if ~any(nameStr == validNames)
             error("ZED2i:Constructor:UnknownParameter", ...
                 "Unknown parameter name '%s'.", nameStr);
@@ -125,11 +128,17 @@ function applyNameValueOverrides(obj, varargin)
             case "fpsAlpha"
                 obj.pPar.fpsAlpha = double(value);
 
+            case "fps"
+                obj.pPar.fps = double(value);
+
             case "nodeName"
                 obj.pPar.nodeName = string(value);
 
             case "topicImage"
                 obj.pPar.topicImage = string(value);
+
+            case "topicImageRight"
+                obj.pPar.topicImageRight = string(value);
 
             case "topicDepth"
                 obj.pPar.topicDepth = string(value);
@@ -142,13 +151,19 @@ function applyNameValueOverrides(obj, varargin)
 
             case "topicImu"
                 obj.pPar.topicImu = string(value);
+
             case "enablePose"
                 obj.pPar.enablePose = logical(value);
 
+            case "topicPose"
+                obj.pPar.topicPose = string(value);
+
             case "topicOdom"
                 obj.pPar.topicOdom = string(value);
+
             case "enablePointCloud"
                 obj.pPar.enablePointCloud = logical(value);
+
             case "topicPointCloud"
                 obj.pPar.topicPointCloud = string(value);
         end
