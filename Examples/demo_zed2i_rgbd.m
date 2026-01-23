@@ -28,7 +28,7 @@ zed.rConnect();
 
 %% Visualization and timing parameters
 t_max      = 30;   % [s] total demo time
-target_fps = 10;   % desired preview FPS
+target_fps = 15;   % desired preview FPS
 
 %% Pre-create figure and graphics objects
 hFig = figure('Name', 'ZED2i RGB-D Preview', 'NumberTitle', 'off');
@@ -71,7 +71,6 @@ while ishandle(hFig) && toc(t) < t_max
     % High-level snapshot: image, depth, metrics, etc.
     % ---------------------------------------------------------------------
     data = zed.rGetSensorData();
-    toc(cycleTic)
 
     if ~data.Connected
         % Se por algum motivo desconectou no meio, aborta demo

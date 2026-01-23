@@ -7,7 +7,7 @@ clc;
 
 %% Add project to path (root-based)
 PastaAtual = pwd;
-PastaRaiz  = 'elt793';
+PastaRaiz  = 'tools_zed2i_m';
 
 idx = strfind(PastaAtual, PastaRaiz);
 if ~isempty(idx)
