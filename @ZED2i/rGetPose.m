@@ -12,54 +12,53 @@ function pose = rGetPose(zed)
 %   PoseCovariance (6x6)
 %   TwistCovariance (6x6)
 
-    pose = buildEmptyPoseStruct();
+    % Não alocamos struct completo aqui; só em caso de erro ou no parse.
+    pose = struct();
 
+    % ---------------------------------------------------------------------
+    % Sanity checks
+    % ---------------------------------------------------------------------
     if ~safeFlag(zed.pFlag, "Connected")
         zed.pFlag.LastError = "Not connected. Call rConnect() first.";
+        zed.pFlag.HasPose = false;
+        pose = buildEmptyPoseStruct();
         return;
     end
 
     if ~isfield(zed.pCom, "subOdom") || isempty(zed.pCom.subOdom)
         zed.pFlag.LastError = ...
-            "Pose subscriber not initialized. Enable pose (pPar.enablePose=true) before rConnect().";
+            "Pose subscriber not initialized. Enable pose (enablePose=true) before rConnect().";
+        zed.pFlag.HasPose = false;
+        pose = buildEmptyPoseStruct();
         return;
     end
 
-    msg = [];
-    hasNewMsg = false;
+    % ---------------------------------------------------------------------
+    % Try to receive a fresh message (with cached fallback)
+    % ---------------------------------------------------------------------
+    [msg, ok, lastErr] = receiveWithCache( ...
+        zed.pCom.subOdom, ...
+        getFieldOrEmpty(zed.pCom, "lastMsgOdom"), ...
+        zed.pPar.timeoutSec, ...
+        "Odom");
 
-    % ---------------------------------------------------------------------
-    % Always try to receive a fresh message
-    % ---------------------------------------------------------------------
-    try
-        msg = receive(zed.pCom.subOdom, zed.pPar.timeoutSec);
-        zed.pCom.lastMsgOdom = msg;
-        hasNewMsg = true;
-    catch excp
-        % On timeout or receive failure, fall back to last valid message
-        if isfield(zed.pCom, "lastMsgOdom") && ~isempty(zed.pCom.lastMsgOdom)
-            msg = zed.pCom.lastMsgOdom;
-        else
-            zed.pFlag.LastError = "Odom receive failed: " + excp.message;
-            zed.pFlag.HasPose = false;
-            return;
-        end
+    if ~ok
+        zed.pFlag.LastError = lastErr;
+        zed.pFlag.HasPose = false;
+        pose = buildEmptyPoseStruct();
+        return;
     end
 
+    zed.pCom.lastMsgOdom = msg;
+
     % ---------------------------------------------------------------------
-    % Parse Odom message (new or cached)
+    % Parse Odom message
     % ---------------------------------------------------------------------
     try
         pose = parseOdomMessage(msg);
-
-        % Cache decoded snapshot
         zed.pData.Pose = pose;
         zed.pFlag.HasPose = true;
-
-        if hasNewMsg
-            zed.pFlag.LastError = "";
-        end
-
+        zed.pFlag.LastError = "";
     catch excp
         zed.pFlag.LastError = "Odom parse failed: " + excp.message;
         zed.pFlag.HasPose = false;
@@ -92,37 +91,90 @@ function flag = safeFlag(flags, fieldName)
     end
 end
 
-function pose = parseOdomMessage(msg)
-    pose = buildEmptyPoseStruct();
-    pose.Timestamp = datetime('now');
+function value = getFieldOrEmpty(s, fieldName)
+%getFieldOrEmpty Retrieve struct field or [] if not present.
+    if isstruct(s) && isfield(s, fieldName)
+        value = s.(fieldName);
+    else
+        value = [];
+    end
+end
 
-    % Header and frames
-    if isfield(msg, "header") && isfield(msg.header, "frame_id")
-        pose.FrameId = string(msg.header.frame_id);
+function [msgOut, ok, errMsg] = receiveWithCache(sub, lastMsg, timeoutSec, label)
+%receiveWithCache Try to receive a fresh ROS2 message with cached fallback.
+
+    msgOut = [];
+    ok = false;
+    errMsg = "";
+
+    try
+        msgOut = receive(sub, timeoutSec);
+        ok = true;
+        return;
+    catch excp
+        if ~isempty(lastMsg)
+            msgOut = lastMsg;
+            ok = true;
+            errMsg = "";
+        else
+            errMsg = label + " receive failed: " + excp.message;
+        end
+    end
+end
+
+function pose = parseOdomMessage(msg)
+%parseOdomMessage Decode nav_msgs/Odometry into a stable struct.
+
+    % Timestamp
+    ts = datetime('now');
+
+    frameId = "";
+    childFrameId = "";
+
+    if isfield(msg, "header")
+        if isfield(msg.header, "frame_id")
+            frameId = string(msg.header.frame_id);
+        end
+        % Poderíamos converter header.stamp aqui se quisermos mais precisão.
     end
     if isfield(msg, "child_frame_id")
-        pose.ChildFrameId = string(msg.child_frame_id);
+        childFrameId = string(msg.child_frame_id);
     end
 
     % Pose
     p = msg.pose.pose.position;
     q = msg.pose.pose.orientation; % ROS: x,y,z,w
 
-    pose.Position = [double(p.x), double(p.y), double(p.z)];
-    pose.OrientationQuat = [double(q.w), double(q.x), double(q.y), double(q.z)];
+    position = [double(p.x), double(p.y), double(p.z)];
+    orientationQuat = [double(q.w), double(q.x), double(q.y), double(q.z)];
 
     % Twist
     v = msg.twist.twist.linear;
     w = msg.twist.twist.angular;
 
-    pose.LinearVelocity = [double(v.x), double(v.y), double(v.z)];
-    pose.AngularVelocity = [double(w.x), double(w.y), double(w.z)];
+    linVel = [double(v.x), double(v.y), double(v.z)];
+    angVel = [double(w.x), double(w.y), double(w.z)];
 
     % Covariances (flattened arrays)
+    poseCov = NaN(6, 6);
+    twistCov = NaN(6, 6);
+
     if isfield(msg.pose, "covariance")
-        pose.PoseCovariance = reshape(double(msg.pose.covariance), [6, 6])';
+        poseCov = reshape(double(msg.pose.covariance), [6, 6])';
     end
     if isfield(msg.twist, "covariance")
-        pose.TwistCovariance = reshape(double(msg.twist.covariance), [6, 6])';
+        twistCov = reshape(double(msg.twist.covariance), [6, 6])';
     end
+
+    pose = struct( ...
+        "Timestamp", ts, ...
+        "FrameId", frameId, ...
+        "ChildFrameId", childFrameId, ...
+        "Position", position, ...
+        "OrientationQuat", orientationQuat, ...
+        "LinearVelocity", linVel, ...
+        "AngularVelocity", angVel, ...
+        "PoseCovariance", poseCov, ...
+        "TwistCovariance", twistCov ...
+    );
 end
