@@ -1,7 +1,7 @@
-function img = rGetImage(zed)
-%rGetImage Blocking receive + decode of the RGB image stream.
+function img = getImage(zed)
+%getImage Blocking receive + decode of the RGB image stream.
 %
-%   img = zed.rGetImage()
+%   img = zed.getImage()
 %
 % img : last RGB frame (uint8), or [] if unavailable
 
@@ -11,14 +11,14 @@ function img = rGetImage(zed)
     % Sanity checks
     % ---------------------------------------------------------------------
     if ~safeFlag(zed.pFlag, "Connected")
-        zed.pFlag.LastError = "Not connected. Call rConnect() first.";
+        zed.pFlag.LastError = "Not connected. Call lcConnect() first.";
         zed.pFlag.HasImage = false;
         return;
     end
 
     if ~isfield(zed.pCom, "subImage") || isempty(zed.pCom.subImage)
         zed.pFlag.LastError = ...
-            "Image subscriber not initialized. Check topics and rConnect().";
+            "Image subscriber not initialized. Check topics and lcConnect().";
         zed.pFlag.HasImage = false;
         return;
     end
@@ -36,7 +36,7 @@ function img = rGetImage(zed)
         zed.pFlag.HasImage  = true;
         zed.pFlag.LastError = "";
 
-        zed.mAuxUpdateFps("image");
+        zed.utilUpdateFps("image");
 
     catch excp
         if isfield(zed.pData, "Metrics") && isfield(zed.pData.Metrics, "ImageDrops")

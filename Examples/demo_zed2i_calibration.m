@@ -22,9 +22,9 @@ end
 
 %% Create sensor object and guarantee proper cleanup
 zed = ZED2i();
-cleanupObj = onCleanup(@() zed.rDisconnect());
+cleanupObj = onCleanup(@() zed.lcDisconnect());
 
-zed.rConnect();
+zed.lcConnect();
 
 %% Fetch calibration (CameraInfo + intrinsics)
 disp('--- ZED2i Calibration ---');
@@ -33,8 +33,8 @@ calib = struct();
 intr  = [];
 
 try
-    % Nova assinatura: [calib, intr] = rGetCalibration(zed)
-    [calib, intr] = zed.rGetCalibration();
+    % Nova assinatura: [calib, intr] = getCalibration(zed)
+    [calib, intr] = zed.getCalibration();
 catch excp
     disp('Failed to retrieve calibration from ROS2 CameraInfo.');
     if isfield(zed.pFlag, "LastError") && ~isempty(zed.pFlag.LastError)

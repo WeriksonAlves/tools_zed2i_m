@@ -2,15 +2,15 @@ classdef ZED2i < handle
     %ZED2i Minimal ROS2 wrapper for ZED2i (MATLAB R2025a).
     %
     % Minimal API (lab-style):
-    %   - rConnect()
-    %   - rGetImage()
-    %   - rGetDepth()
-    %   - rGetCalibration()
-    %   - rGetSensorData()
-    %   - rGetImu()            % opcional, se enableImu = true
-    %   - rGetPose()           % opcional, se enablePose = true
-    %   - rGetPointCloud()     % opcional, se enablePointCloud = true
-    %   - rDisconnect()
+    %   - lcConnect()
+    %   - getImage()
+    %   - getDepth()
+    %   - getCalibration()
+    %   - getSensorData()
+    %   - getImu()            % opcional, se enableImu = true
+    %   - getPose()           % opcional, se enablePose = true
+    %   - getPointCloud()     % opcional, se enablePointCloud = true
+    %   - lcDisconnect()
     %
     % Internal organization:
     %   pPar  : parameters
@@ -61,8 +61,8 @@ classdef ZED2i < handle
             obj.pCom  = struct();
 
             % -------------------- Configuração padrão --------------------
-            obj.iParameters();
-            obj.iControlVariables();
+            obj.cfgParameters();
+            obj.cfgState();
 
             % -------------------- Overrides via Name-Value ----------------
             if ~isempty(nameValueArgs)
@@ -86,7 +86,7 @@ function applyNameValueOverrides(obj, varargin)
             "Name-Value arguments must come in pairs.");
     end
 
-    % Lista de parâmetros suportados (mantida em sincronia com iParameters)
+    % Lista de parâmetros suportados (mantida em sincronia com cfgParameters)
     validNames = [ ...
         "timeoutSec", ...
         "fpsAlpha", ...

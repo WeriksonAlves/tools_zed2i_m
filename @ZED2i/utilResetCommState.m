@@ -1,5 +1,5 @@
-function mAuxResetCommState(zed)
-%mAuxResetCommState Clear ROS2 node, subscribers and last received messages.
+function utilResetCommState(zed)
+%utilResetCommState Clear ROS2 node, subscribers and last received messages.
 %
 % This is the single source of truth for zeroing pCom to a known baseline.
 % It is safe to call multiple times (idempotent).

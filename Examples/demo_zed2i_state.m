@@ -1,8 +1,8 @@
 % demo_zed2i_state.m
-% IMU + Pose/Odom demo using ZED2i.rGetSensorData (high-level API).
+% IMU + Pose/Odom demo using ZED2i.getSensorData (high-level API).
 %
 % - Habilita IMU e Pose via construtor (enableImu / enablePose)
-% - Usa rGetSensorData para obter:
+% - Usa getSensorData para obter:
 %     * Imu (AngularVelocity, LinearAcceleration, etc.)
 %     * Pose (Position, OrientationQuat, etc.)
 %     * Flags, Metrics e LastError
@@ -33,8 +33,8 @@ zed = ZED2i( ...
     "enablePose", true ...
 );
 
-cleanupObj = onCleanup(@() zed.rDisconnect());
-zed.rConnect();
+cleanupObj = onCleanup(@() zed.lcDisconnect());
+zed.lcConnect();
 
 %% Buffers para logs de estado
 traj          = zeros(0, 3);  % trajetória (XYZ) da pose
@@ -69,10 +69,10 @@ while toc(t) < t_max
         % -----------------------------------------------------------------
         % Leitura de alto nível: agrupa tudo em uma struct
         % -----------------------------------------------------------------
-        data = zed.rGetSensorData();
+        data = zed.getSensorData();
 
         if mod(frameCount, 30) == 0
-            fprintf('rGetSensorData (last frame): %.3f s\n', toc(cycleTic));
+            fprintf('getSensorData (last frame): %.3f s\n', toc(cycleTic));
         end
 
         % Se desconectar no meio, aborta a demo de forma limpa

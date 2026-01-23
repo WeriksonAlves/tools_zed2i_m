@@ -1,5 +1,5 @@
-function pose = rGetPose(zed)
-%rGetPose Get pose/odometry data from ROS2 nav_msgs/Odometry (optional feature).
+function pose = getPose(zed)
+%getPose Get pose/odometry data from ROS2 nav_msgs/Odometry (optional feature).
 %
 % Returns a struct with stable fields:
 %   Timestamp (datetime)
@@ -16,7 +16,7 @@ function pose = rGetPose(zed)
     % Sanity checks
     % ---------------------------------------------------------------------
     if ~safeFlag(zed.pFlag, "Connected")
-        zed.pFlag.LastError = "Not connected. Call rConnect() first.";
+        zed.pFlag.LastError = "Not connected. Call lcConnect() first.";
         zed.pFlag.HasPose = false;
         pose = buildEmptyPoseStruct();
         return;
@@ -24,7 +24,7 @@ function pose = rGetPose(zed)
 
     if ~isfield(zed.pCom, "subOdom") || isempty(zed.pCom.subOdom)
         zed.pFlag.LastError = ...
-            "Pose subscriber not initialized. Enable pose (enablePose=true) before rConnect().";
+            "Pose subscriber not initialized. Enable pose (enablePose=true) before lcConnect().";
         zed.pFlag.HasPose = false;
         pose = buildEmptyPoseStruct();
         return;
@@ -146,7 +146,7 @@ function pose = parseOdomMessage(msg)
 
     % Converte quaternion [w x y z] -> [roll pitch yaw] (rad)
     qwxyz = [double(q.w), double(q.x), double(q.y), double(q.z)];
-    orientationEul = mAuxQuatToEulerRad(qwxyz);
+    orientationEul = utilQuatToEulerRad(qwxyz);
 
     % Covariances (flattened arrays)
     poseCov  = NaN(6, 6);
@@ -172,10 +172,10 @@ function pose = parseOdomMessage(msg)
     );
 end
 
-function eul = mAuxQuatToEulerRad(q)
-%mAuxQuatToEulerRad Convert quaternion [w x y z] to [roll pitch yaw] (rad).
+function eul = utilQuatToEulerRad(q)
+%utilQuatToEulerRad Convert quaternion [w x y z] to [roll pitch yaw] (rad).
 %
-%   eul = mAuxQuatToEulerRad(q)
+%   eul = utilQuatToEulerRad(q)
 %
 %   Input:
 %       q  - quaternion em formato [w x y z], 1x4 ou Nx4.
@@ -184,7 +184,7 @@ function eul = mAuxQuatToEulerRad(q)
 %       eul - [N x 3] com [roll pitch yaw] em rad (convenção ZYX).
 
     if ~ismatrix(q) || size(q, 2) ~= 4
-        error("mAuxQuatToEulerRad:InvalidSize", ...
+        error("utilQuatToEulerRad:InvalidSize", ...
             "Input q must be of size Nx4 with format [w x y z].");
     end
 

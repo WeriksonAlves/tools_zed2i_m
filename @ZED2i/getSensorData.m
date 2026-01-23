@@ -1,5 +1,5 @@
-function data = rGetSensorData(zed)
-%rGetSensorData Aggregate sensor data in a lab-friendly format.
+function data = getSensorData(zed)
+%getSensorData Aggregate sensor data in a lab-friendly format.
 %
 % Returns a struct with stable fields:
 %   Timestamp            (datetime)
@@ -25,15 +25,15 @@ function data = rGetSensorData(zed)
     % Conectado?
     % ---------------------------------------------------------------------
     if ~safeFlag(zed.pFlag, "Connected")
-        data.LastError = "Not connected. Call rConnect() first.";
+        data.LastError = "Not connected. Call lcConnect() first.";
         return;
     end
 
     % ---------------------------------------------------------------------
     % Visual: image + depth (cada getter faz seu próprio receive)
     % ---------------------------------------------------------------------
-    img = zed.rGetImage();
-    [depth, depthMask] = zed.rGetDepth();
+    img = zed.getImage();
+    [depth, depthMask] = zed.getDepth();
 
     data.Image     = img;
     data.Depth     = depth;
@@ -46,7 +46,7 @@ function data = rGetSensorData(zed)
     % IMU (opcional, só se habilitado)
     % ---------------------------------------------------------------------
     if isfield(zed.pPar, "enableImu") && zed.pPar.enableImu
-        imu = zed.rGetImu();
+        imu = zed.getImu();
         data.Imu    = imu;
         data.HasImu = safeFlag(zed.pFlag, "HasImu");
     end
@@ -55,7 +55,7 @@ function data = rGetSensorData(zed)
     % Pose (opcional, só se habilitado)
     % ---------------------------------------------------------------------
     if isfield(zed.pPar, "enablePose") && zed.pPar.enablePose
-        p = zed.rGetPose();
+        p = zed.getPose();
         data.Pose    = p;
         data.HasPose = safeFlag(zed.pFlag, "HasPose");
     end
@@ -68,7 +68,7 @@ function data = rGetSensorData(zed)
         if isfield(zed.pPar, "autoFetchPointCloud") && zed.pPar.autoFetchPointCloud
             try
                 % This may be a heavy operation
-                pc = zed.rGetPointCloud();
+                pc = zed.getPointCloud();
             catch
                 % Ignore errors here; use last known point cloud
             end

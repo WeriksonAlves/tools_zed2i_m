@@ -1,8 +1,8 @@
-function mAuxUpdateFps(zed, stream)
-%mAuxUpdateFps Update FPS estimate for the given stream ("image" or "depth").
+function utilUpdateFps(zed, stream)
+%utilUpdateFps Update FPS estimate for the given stream ("image" or "depth").
 %
-%   zed.mAuxUpdateFps("image");
-%   zed.mAuxUpdateFps("depth");
+%   zed.utilUpdateFps("image");
+%   zed.utilUpdateFps("depth");
 
     alpha = zed.pPar.fpsAlpha;
 
