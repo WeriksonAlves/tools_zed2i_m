@@ -34,14 +34,14 @@ function [depth, validMask] = getDepth(zed)
 
         depthRaw = rosReadImage(msgDepth);
 
-        depth = zed.mAuxSanitizeDepth(depthRaw);
+        depth = zed.utilSanitizeDepth(depthRaw);
         validMask = isfinite(depth) & (depth > 0);
 
         zed.pData.Depth     = depth;
         zed.pFlag.HasDepth  = true;
         zed.pFlag.LastError = "";
 
-        zed.mAuxUpdateFps("depth");
+        zed.utilUpdateFps("depth");
 
     catch excp
         if isfield(zed.pData, "Metrics") && isfield(zed.pData.Metrics, "DepthDrops")

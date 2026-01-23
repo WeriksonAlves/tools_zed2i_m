@@ -47,5 +47,5 @@ function cfgState(zed)
     % Comunicação ROS2 (node, subscribers, últimas mensagens)
     % Reuso da lógica centralizada em resetCommState
     % ---------------------------------------------------------------------
-    zed.mAuxResetCommState();
+    zed.utilResetCommState();
 end

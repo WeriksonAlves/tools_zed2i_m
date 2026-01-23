@@ -37,7 +37,7 @@ function lcConnect(zed)
     % ---------------------------------------------------------------------
     % Clean any previous partial state to avoid leaks or inconsistent flags
     % ---------------------------------------------------------------------
-    zed.mAuxResetCommState();
+    zed.utilResetCommState();
 
     try
         % Create ROS2 node
@@ -100,7 +100,7 @@ function lcConnect(zed)
         zed.pFlag.LastError = excp.message;
 
         % Best effort to clean up partially created node/subscribers
-        zed.mAuxResetCommState();
+        zed.utilResetCommState();
 
         rethrow(excp);
     end

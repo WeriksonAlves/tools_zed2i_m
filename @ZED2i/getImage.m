@@ -36,7 +36,7 @@ function img = getImage(zed)
         zed.pFlag.HasImage  = true;
         zed.pFlag.LastError = "";
 
-        zed.mAuxUpdateFps("image");
+        zed.utilUpdateFps("image");
 
     catch excp
         if isfield(zed.pData, "Metrics") && isfield(zed.pData.Metrics, "ImageDrops")

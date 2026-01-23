@@ -146,7 +146,7 @@ function pose = parseOdomMessage(msg)
 
     % Converte quaternion [w x y z] -> [roll pitch yaw] (rad)
     qwxyz = [double(q.w), double(q.x), double(q.y), double(q.z)];
-    orientationEul = mAuxQuatToEulerRad(qwxyz);
+    orientationEul = utilQuatToEulerRad(qwxyz);
 
     % Covariances (flattened arrays)
     poseCov  = NaN(6, 6);
@@ -172,10 +172,10 @@ function pose = parseOdomMessage(msg)
     );
 end
 
-function eul = mAuxQuatToEulerRad(q)
-%mAuxQuatToEulerRad Convert quaternion [w x y z] to [roll pitch yaw] (rad).
+function eul = utilQuatToEulerRad(q)
+%utilQuatToEulerRad Convert quaternion [w x y z] to [roll pitch yaw] (rad).
 %
-%   eul = mAuxQuatToEulerRad(q)
+%   eul = utilQuatToEulerRad(q)
 %
 %   Input:
 %       q  - quaternion em formato [w x y z], 1x4 ou Nx4.
@@ -184,7 +184,7 @@ function eul = mAuxQuatToEulerRad(q)
 %       eul - [N x 3] com [roll pitch yaw] em rad (convenção ZYX).
 
     if ~ismatrix(q) || size(q, 2) ~= 4
-        error("mAuxQuatToEulerRad:InvalidSize", ...
+        error("utilQuatToEulerRad:InvalidSize", ...
             "Input q must be of size Nx4 with format [w x y z].");
     end
 

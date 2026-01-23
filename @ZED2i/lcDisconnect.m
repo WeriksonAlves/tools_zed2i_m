@@ -4,7 +4,7 @@ function lcDisconnect(zed)
 % This method is idempotent: it can be called multiple times safely.
 
     % Sempre fazemos um cleanup defensivo da comunicação
-    zed.mAuxResetCommState();
+    zed.utilResetCommState();
 
     % Flags em estado desconectado conhecido
     zed.pFlag.Connected      = false;
