@@ -1,5 +1,5 @@
-function rDisconnect(zed)
-%rDisconnect Release ROS2 resources and reset communication state.
+function lcDisconnect(zed)
+%lcDisconnect Release ROS2 resources and reset communication state.
 %
 % This method is idempotent: it can be called multiple times safely.
 

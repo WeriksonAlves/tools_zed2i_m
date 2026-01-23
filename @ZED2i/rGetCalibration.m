@@ -27,7 +27,7 @@ function [calib, intr] = rGetCalibration(zed)
     % Safety check: require connection
     % ------------------------------------------------------------
     if ~safeFlag(zed.pFlag, "Connected")
-        zed.pFlag.LastError = "Not connected. Call rConnect() first.";
+        zed.pFlag.LastError = "Not connected. Call lcConnect() first.";
         return;
     end
 

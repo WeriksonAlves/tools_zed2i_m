@@ -16,7 +16,7 @@ clc;
 
 %% Add project to path (root-based)
 PastaAtual = pwd;
-PastaRaiz  = 'elt793';  % ajuste se o nome da raiz mudar
+PastaRaiz  = 'tools_zed2i_m';
 
 idx = strfind(PastaAtual, PastaRaiz);
 if ~isempty(idx)
@@ -64,8 +64,8 @@ else
     );
 end
 
-cleanupObj = onCleanup(@() zed.rDisconnect());
-zed.rConnect();
+cleanupObj = onCleanup(@() zed.lcDisconnect());
+zed.lcConnect();
 
 %% Parâmetros da preview
 t_max           = 10;   % duração total [s]
@@ -228,7 +228,7 @@ end
 
 fprintf("Visualização em tempo real encerrada.\n");
 
-% rDisconnect será chamado automaticamente por cleanupObj
+% lcDisconnect será chamado automaticamente por cleanupObj
 
 %% Pequeno helper tipo operador ternário
 function out = ternary(cond, valTrue, valFalse)

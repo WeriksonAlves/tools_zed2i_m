@@ -22,9 +22,9 @@ end
 
 %% Create sensor object and guarantee proper cleanup
 zed = ZED2i();
-cleanupObj = onCleanup(@() zed.rDisconnect());
+cleanupObj = onCleanup(@() zed.lcDisconnect());
 
-zed.rConnect();
+zed.lcConnect();
 
 %% Fetch calibration (CameraInfo + intrinsics)
 disp('--- ZED2i Calibration ---');

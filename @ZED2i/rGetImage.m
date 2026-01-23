@@ -11,14 +11,14 @@ function img = rGetImage(zed)
     % Sanity checks
     % ---------------------------------------------------------------------
     if ~safeFlag(zed.pFlag, "Connected")
-        zed.pFlag.LastError = "Not connected. Call rConnect() first.";
+        zed.pFlag.LastError = "Not connected. Call lcConnect() first.";
         zed.pFlag.HasImage = false;
         return;
     end
 
     if ~isfield(zed.pCom, "subImage") || isempty(zed.pCom.subImage)
         zed.pFlag.LastError = ...
-            "Image subscriber not initialized. Check topics and rConnect().";
+            "Image subscriber not initialized. Check topics and lcConnect().";
         zed.pFlag.HasImage = false;
         return;
     end

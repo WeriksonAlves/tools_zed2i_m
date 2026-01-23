@@ -22,9 +22,9 @@ end
 
 %% Create ZED2i object and guarantee proper cleanup
 zed = ZED2i();
-cleanupObj = onCleanup(@() zed.rDisconnect());
+cleanupObj = onCleanup(@() zed.lcDisconnect());
 
-zed.rConnect();
+zed.lcConnect();
 
 %% Visualization and timing parameters
 t_max      = 30;   % [s] total demo time
@@ -137,4 +137,4 @@ while ishandle(hFig) && toc(t) < t_max
     end
 end
 
-% rDisconnect será chamado automaticamente por cleanupObj
+% lcDisconnect será chamado automaticamente por cleanupObj

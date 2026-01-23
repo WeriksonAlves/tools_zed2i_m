@@ -137,8 +137,8 @@ tools_zed2i_m/
 │   ├── ZED2i.m
 │   ├── iParameters.m
 │   ├── iControlVariables.m
-│   ├── rConnect.m
-│   ├── rDisconnect.m
+│   ├── lcConnect.m
+│   ├── lcDisconnect.m
 │   ├── rGrab.m
 │   ├── rGetImage.m
 │   ├── rGetDepth.m
@@ -167,7 +167,7 @@ tools_zed2i_m/
 
 ```matlab
 zed = ZED2i();
-zed.rConnect();
+zed.lcConnect();
 
 for k = 1:100
     if zed.rGrab()
@@ -176,7 +176,7 @@ for k = 1:100
     end
 end
 
-zed.rDisconnect();
+zed.lcDisconnect();
 ```
 
 ---
@@ -188,14 +188,14 @@ The recommended way to access data is via `rGetSensorData`, which returns a
 
 ```matlab
 zed = ZED2i("enableImu", true, "enablePose", true);
-zed.rConnect();
+zed.lcConnect();
 
 data = zed.rGetSensorData();
 
 imshow(data.Image);
 disp(data.Metrics);
 
-zed.rDisconnect();
+zed.lcDisconnect();
 ```
 
 Returned fields may include:

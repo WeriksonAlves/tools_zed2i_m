@@ -16,7 +16,7 @@ function pose = rGetPose(zed)
     % Sanity checks
     % ---------------------------------------------------------------------
     if ~safeFlag(zed.pFlag, "Connected")
-        zed.pFlag.LastError = "Not connected. Call rConnect() first.";
+        zed.pFlag.LastError = "Not connected. Call lcConnect() first.";
         zed.pFlag.HasPose = false;
         pose = buildEmptyPoseStruct();
         return;
@@ -24,7 +24,7 @@ function pose = rGetPose(zed)
 
     if ~isfield(zed.pCom, "subOdom") || isempty(zed.pCom.subOdom)
         zed.pFlag.LastError = ...
-            "Pose subscriber not initialized. Enable pose (enablePose=true) before rConnect().";
+            "Pose subscriber not initialized. Enable pose (enablePose=true) before lcConnect().";
         zed.pFlag.HasPose = false;
         pose = buildEmptyPoseStruct();
         return;

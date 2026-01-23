@@ -13,14 +13,14 @@ function [depth, validMask] = rGetDepth(zed)
     % Sanity checks
     % ---------------------------------------------------------------------
     if ~safeFlag(zed.pFlag, "Connected")
-        zed.pFlag.LastError = "Not connected. Call rConnect() first.";
+        zed.pFlag.LastError = "Not connected. Call lcConnect() first.";
         zed.pFlag.HasDepth = false;
         return;
     end
 
     if ~isfield(zed.pCom, "subDepth") || isempty(zed.pCom.subDepth)
         zed.pFlag.LastError = ...
-            "Depth subscriber not initialized. Check topics and rConnect().";
+            "Depth subscriber not initialized. Check topics and lcConnect().";
         zed.pFlag.HasDepth = false;
         return;
     end

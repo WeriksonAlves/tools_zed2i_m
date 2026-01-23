@@ -2,7 +2,7 @@ classdef ZED2i < handle
     %ZED2i Minimal ROS2 wrapper for ZED2i (MATLAB R2025a).
     %
     % Minimal API (lab-style):
-    %   - rConnect()
+    %   - lcConnect()
     %   - rGetImage()
     %   - rGetDepth()
     %   - rGetCalibration()
@@ -10,7 +10,7 @@ classdef ZED2i < handle
     %   - rGetImu()            % opcional, se enableImu = true
     %   - rGetPose()           % opcional, se enablePose = true
     %   - rGetPointCloud()     % opcional, se enablePointCloud = true
-    %   - rDisconnect()
+    %   - lcDisconnect()
     %
     % Internal organization:
     %   pPar  : parameters

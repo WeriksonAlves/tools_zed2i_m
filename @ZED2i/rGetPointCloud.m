@@ -15,7 +15,7 @@ function pc = rGetPointCloud(zed)
     % Sanity checks
     % ---------------------------------------------------------------------
     if ~safeFlag(zed.pFlag, "Connected")
-        zed.pFlag.LastError = "Not connected. Call rConnect() first.";
+        zed.pFlag.LastError = "Not connected. Call lcConnect() first.";
         zed.pFlag.HasPointCloud = false;
         pc = buildEmptyPointCloudStruct();
         return;
@@ -23,7 +23,7 @@ function pc = rGetPointCloud(zed)
 
     if ~isfield(zed.pCom, "subPointCloud") || isempty(zed.pCom.subPointCloud)
         zed.pFlag.LastError = ...
-            "PointCloud subscriber not initialized. Enable point cloud (enablePointCloud=true) before rConnect().";
+            "PointCloud subscriber not initialized. Enable point cloud (enablePointCloud=true) before lcConnect().";
         zed.pFlag.HasPointCloud = false;
         pc = buildEmptyPointCloudStruct();
         return;

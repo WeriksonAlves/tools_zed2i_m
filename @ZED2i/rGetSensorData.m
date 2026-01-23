@@ -25,7 +25,7 @@ function data = rGetSensorData(zed)
     % Conectado?
     % ---------------------------------------------------------------------
     if ~safeFlag(zed.pFlag, "Connected")
-        data.LastError = "Not connected. Call rConnect() first.";
+        data.LastError = "Not connected. Call lcConnect() first.";
         return;
     end
 
