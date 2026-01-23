@@ -3,13 +3,13 @@ classdef ZED2i < handle
     %
     % Minimal API (lab-style):
     %   - lcConnect()
-    %   - rGetImage()
-    %   - rGetDepth()
-    %   - rGetCalibration()
-    %   - rGetSensorData()
-    %   - rGetImu()            % opcional, se enableImu = true
-    %   - rGetPose()           % opcional, se enablePose = true
-    %   - rGetPointCloud()     % opcional, se enablePointCloud = true
+    %   - getImage()
+    %   - getDepth()
+    %   - getCalibration()
+    %   - getSensorData()
+    %   - getImu()            % opcional, se enableImu = true
+    %   - getPose()           % opcional, se enablePose = true
+    %   - getPointCloud()     % opcional, se enablePointCloud = true
     %   - lcDisconnect()
     %
     % Internal organization:

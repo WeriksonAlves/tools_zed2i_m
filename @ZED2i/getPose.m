@@ -1,5 +1,5 @@
-function pose = rGetPose(zed)
-%rGetPose Get pose/odometry data from ROS2 nav_msgs/Odometry (optional feature).
+function pose = getPose(zed)
+%getPose Get pose/odometry data from ROS2 nav_msgs/Odometry (optional feature).
 %
 % Returns a struct with stable fields:
 %   Timestamp (datetime)

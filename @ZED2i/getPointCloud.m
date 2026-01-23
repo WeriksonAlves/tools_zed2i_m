@@ -1,5 +1,5 @@
-function pc = rGetPointCloud(zed)
-%rGetPointCloud Get registered point cloud from ROS2 sensor_msgs/PointCloud2.
+function pc = getPointCloud(zed)
+%getPointCloud Get registered point cloud from ROS2 sensor_msgs/PointCloud2.
 %
 % Returns a struct with stable fields:
 %   Timestamp  (datetime)

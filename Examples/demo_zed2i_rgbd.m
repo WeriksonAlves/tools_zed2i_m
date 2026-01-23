@@ -66,10 +66,10 @@ while ishandle(hFig) && toc(t) < t_max
         % ---------------------------------------------------------------------
         % High-level snapshot: image, depth, metrics, etc.
         % ---------------------------------------------------------------------
-        data = zed.rGetSensorData();
+        data = zed.getSensorData();
 
         if mod(frameCount, 30) == 0
-            fprintf('\nrGetSensorData (last frame): %.3f s\n', toc(cycleTic));
+            fprintf('\ngetSensorData (last frame): %.3f s\n', toc(cycleTic));
         end
 
         if ~data.Connected

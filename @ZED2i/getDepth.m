@@ -1,7 +1,7 @@
-function [depth, validMask] = rGetDepth(zed)
-%rGetDepth Blocking receive + decode of the depth stream with sanitization.
+function [depth, validMask] = getDepth(zed)
+%getDepth Blocking receive + decode of the depth stream with sanitization.
 %
-%   [depth, validMask] = zed.rGetDepth()
+%   [depth, validMask] = zed.getDepth()
 %
 % depth     : depth frame (single, meters), or [] if unavailable
 % validMask : logical mask of valid pixels, or [] if depth empty

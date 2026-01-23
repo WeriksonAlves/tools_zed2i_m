@@ -1,7 +1,7 @@
-function img = rGetImage(zed)
-%rGetImage Blocking receive + decode of the RGB image stream.
+function img = getImage(zed)
+%getImage Blocking receive + decode of the RGB image stream.
 %
-%   img = zed.rGetImage()
+%   img = zed.getImage()
 %
 % img : last RGB frame (uint8), or [] if unavailable
 

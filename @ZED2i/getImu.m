@@ -1,5 +1,5 @@
-function imu = rGetImu(zed)
-%rGetImu Get IMU data from ROS2 sensor_msgs/Imu (optional feature).
+function imu = getImu(zed)
+%getImu Get IMU data from ROS2 sensor_msgs/Imu (optional feature).
 %
 % Returns a struct with stable fields:
 %   Timestamp                 (datetime)

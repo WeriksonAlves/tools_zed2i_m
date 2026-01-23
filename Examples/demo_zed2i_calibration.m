@@ -33,8 +33,8 @@ calib = struct();
 intr  = [];
 
 try
-    % Nova assinatura: [calib, intr] = rGetCalibration(zed)
-    [calib, intr] = zed.rGetCalibration();
+    % Nova assinatura: [calib, intr] = getCalibration(zed)
+    [calib, intr] = zed.getCalibration();
 catch excp
     disp('Failed to retrieve calibration from ROS2 CameraInfo.');
     if isfield(zed.pFlag, "LastError") && ~isempty(zed.pFlag.LastError)

@@ -45,7 +45,7 @@ function cfgParameters(zed)
 
     zed.pPar.topicPointCloud      = "/zed/zed_node/point_cloud/cloud_registered";
     zed.pPar.enablePointCloud     = false;   % default: off
-    zed.pPar.autoFetchPointCloud  = false;   % NEW: rGetSensorData não faz fetch pesado por padrão
+    zed.pPar.autoFetchPointCloud  = false;
 
     
 

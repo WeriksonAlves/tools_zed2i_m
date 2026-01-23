@@ -1,5 +1,5 @@
-function [calib, intr] = rGetCalibration(zed)
-%rGetCalibration Get camera intrinsics/extrinsics from ROS2 CameraInfo.
+function [calib, intr] = getCalibration(zed)
+%getCalibration Get camera intrinsics/extrinsics from ROS2 CameraInfo.
 %
 % Outputs:
 %   calib : struct with fields
