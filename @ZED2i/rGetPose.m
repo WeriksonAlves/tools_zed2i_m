@@ -6,60 +6,56 @@ function pose = rGetPose(zed)
 %   FrameId (string)
 %   ChildFrameId (string)
 %   Position (1x3) [x y z] (m)
-%   OrientationQuat (1x4) [w x y z]
-%   LinearVelocity (1x3) (m/s)
-%   AngularVelocity (1x3) (rad/s)
+%   OrientationEuler (1x3) [roll pitch yaw] (rad)
 %   PoseCovariance (6x6)
 %   TwistCovariance (6x6)
 
-    pose = buildEmptyPoseStruct();
+    pose = struct();
 
+    % ---------------------------------------------------------------------
+    % Sanity checks
+    % ---------------------------------------------------------------------
     if ~safeFlag(zed.pFlag, "Connected")
         zed.pFlag.LastError = "Not connected. Call rConnect() first.";
+        zed.pFlag.HasPose = false;
+        pose = buildEmptyPoseStruct();
         return;
     end
 
     if ~isfield(zed.pCom, "subOdom") || isempty(zed.pCom.subOdom)
         zed.pFlag.LastError = ...
-            "Pose subscriber not initialized. Enable pose (pPar.enablePose=true) before rConnect().";
+            "Pose subscriber not initialized. Enable pose (enablePose=true) before rConnect().";
+        zed.pFlag.HasPose = false;
+        pose = buildEmptyPoseStruct();
         return;
     end
 
-    msg = [];
-    hasNewMsg = false;
+    % ---------------------------------------------------------------------
+    % Try to receive a fresh message (with cached fallback)
+    % ---------------------------------------------------------------------
+    [msg, ok, lastErr] = receiveWithCache( ...
+        zed.pCom.subOdom, ...
+        getFieldOrEmpty(zed.pCom, "lastMsgOdom"), ...
+        zed.pPar.timeoutSec, ...
+        "Odom");
 
-    % ---------------------------------------------------------------------
-    % Always try to receive a fresh message
-    % ---------------------------------------------------------------------
-    try
-        msg = receive(zed.pCom.subOdom, zed.pPar.timeoutSec);
-        zed.pCom.lastMsgOdom = msg;
-        hasNewMsg = true;
-    catch excp
-        % On timeout or receive failure, fall back to last valid message
-        if isfield(zed.pCom, "lastMsgOdom") && ~isempty(zed.pCom.lastMsgOdom)
-            msg = zed.pCom.lastMsgOdom;
-        else
-            zed.pFlag.LastError = "Odom receive failed: " + excp.message;
-            zed.pFlag.HasPose = false;
-            return;
-        end
+    if ~ok
+        zed.pFlag.LastError = lastErr;
+        zed.pFlag.HasPose = false;
+        pose = buildEmptyPoseStruct();
+        return;
     end
 
+    zed.pCom.lastMsgOdom = msg;
+
     % ---------------------------------------------------------------------
-    % Parse Odom message (new or cached)
+    % Parse Odom message
     % ---------------------------------------------------------------------
     try
         pose = parseOdomMessage(msg);
-
-        % Cache decoded snapshot
         zed.pData.Pose = pose;
         zed.pFlag.HasPose = true;
-
-        if hasNewMsg
-            zed.pFlag.LastError = "";
-        end
-
+        zed.pFlag.LastError = "";
     catch excp
         zed.pFlag.LastError = "Odom parse failed: " + excp.message;
         zed.pFlag.HasPose = false;
@@ -77,9 +73,9 @@ function pose = buildEmptyPoseStruct()
         "FrameId", "", ...
         "ChildFrameId", "", ...
         "Position", [NaN NaN NaN], ...
-        "OrientationQuat", [NaN NaN NaN NaN], ...
-        "LinearVelocity", [NaN NaN NaN], ...
-        "AngularVelocity", [NaN NaN NaN], ...
+        "OrientationEuler", [NaN NaN NaN], ...
+        "LinearVelocity", [NaN NaN NaN], ...   % mantido para compat futuro
+        "AngularVelocity", [NaN NaN NaN], ...  % mantido para compat futuro
         "PoseCovariance", NaN(6, 6), ...
         "TwistCovariance", NaN(6, 6) ...
     );
@@ -92,37 +88,127 @@ function flag = safeFlag(flags, fieldName)
     end
 end
 
-function pose = parseOdomMessage(msg)
-    pose = buildEmptyPoseStruct();
-    pose.Timestamp = datetime('now');
+function value = getFieldOrEmpty(s, fieldName)
+%getFieldOrEmpty Retrieve struct field or [] if not present.
+    if isstruct(s) && isfield(s, fieldName)
+        value = s.(fieldName);
+    else
+        value = [];
+    end
+end
 
-    % Header and frames
-    if isfield(msg, "header") && isfield(msg.header, "frame_id")
-        pose.FrameId = string(msg.header.frame_id);
+function [msgOut, ok, errMsg] = receiveWithCache(sub, lastMsg, timeoutSec, label)
+%receiveWithCache Try to receive a fresh ROS2 message with cached fallback.
+
+    msgOut = [];
+    ok = false;
+    errMsg = "";
+
+    try
+        msgOut = receive(sub, timeoutSec);
+        ok = true;
+        return;
+    catch excp
+        if ~isempty(lastMsg)
+            msgOut = lastMsg;
+            ok = true;
+            errMsg = "";
+        else
+            errMsg = label + " receive failed: " + excp.message;
+        end
+    end
+end
+
+function pose = parseOdomMessage(msg)
+%parseOdomMessage Decode nav_msgs/Odometry into a stable struct.
+
+    % Timestamp
+    ts = datetime('now');
+
+    frameId = "";
+    childFrameId = "";
+
+    if isfield(msg, "header")
+        if isfield(msg.header, "frame_id")
+            frameId = string(msg.header.frame_id);
+        end
+        % Poderíamos converter header.stamp aqui se quisermos mais precisão.
     end
     if isfield(msg, "child_frame_id")
-        pose.ChildFrameId = string(msg.child_frame_id);
+        childFrameId = string(msg.child_frame_id);
     end
 
     % Pose
     p = msg.pose.pose.position;
     q = msg.pose.pose.orientation; % ROS: x,y,z,w
 
-    pose.Position = [double(p.x), double(p.y), double(p.z)];
-    pose.OrientationQuat = [double(q.w), double(q.x), double(q.y), double(q.z)];
+    position = [double(p.x), double(p.y), double(p.z)];
 
-    % Twist
-    v = msg.twist.twist.linear;
-    w = msg.twist.twist.angular;
-
-    pose.LinearVelocity = [double(v.x), double(v.y), double(v.z)];
-    pose.AngularVelocity = [double(w.x), double(w.y), double(w.z)];
+    % Converte quaternion [w x y z] -> [roll pitch yaw] (rad)
+    qwxyz = [double(q.w), double(q.x), double(q.y), double(q.z)];
+    orientationEul = mAuxQuatToEulerRad(qwxyz);
 
     % Covariances (flattened arrays)
+    poseCov  = NaN(6, 6);
+    twistCov = NaN(6, 6);
+
     if isfield(msg.pose, "covariance")
-        pose.PoseCovariance = reshape(double(msg.pose.covariance), [6, 6])';
+        poseCov = reshape(double(msg.pose.covariance), [6, 6])';
     end
     if isfield(msg.twist, "covariance")
-        pose.TwistCovariance = reshape(double(msg.twist.covariance), [6, 6])';
+        twistCov = reshape(double(msg.twist.covariance), [6, 6])';
     end
+
+    pose = struct( ...
+        "Timestamp", ts, ...
+        "FrameId", frameId, ...
+        "ChildFrameId", childFrameId, ...
+        "Position", position, ...
+        "OrientationEuler", orientationEul, ...
+        "LinearVelocity", [NaN NaN NaN], ...
+        "AngularVelocity", [NaN NaN NaN], ...
+        "PoseCovariance", poseCov, ...
+        "TwistCovariance", twistCov ...
+    );
+end
+
+function eul = mAuxQuatToEulerRad(q)
+%mAuxQuatToEulerRad Convert quaternion [w x y z] to [roll pitch yaw] (rad).
+%
+%   eul = mAuxQuatToEulerRad(q)
+%
+%   Input:
+%       q  - quaternion em formato [w x y z], 1x4 ou Nx4.
+%
+%   Output:
+%       eul - [N x 3] com [roll pitch yaw] em rad (convenção ZYX).
+
+    if ~ismatrix(q) || size(q, 2) ~= 4
+        error("mAuxQuatToEulerRad:InvalidSize", ...
+            "Input q must be of size Nx4 with format [w x y z].");
+    end
+
+    q = double(q);
+
+    w = q(:, 1);
+    x = q(:, 2);
+    y = q(:, 3);
+    z = q(:, 4);
+
+    % roll (X-axis rotation)
+    sinr_cosp = 2 .* (w .* x + y .* z);
+    cosr_cosp = 1 - 2 .* (x.^2 + y.^2);
+    roll = atan2(sinr_cosp, cosr_cosp);
+
+    % pitch (Y-axis rotation)
+    sinp = 2 .* (w .* y - z .* x);
+    sinp = max(min(sinp, 1), -1);  % clamp numérico
+    pitch = asin(sinp);
+
+    % yaw (Z-axis rotation)
+    siny_cosp = 2 .* (w .* z + x .* y);
+    cosy_cosp = 1 - 2 .* (y.^2 + z.^2);
+    yaw = atan2(siny_cosp, cosy_cosp);
+
+    eul = [roll, pitch, yaw];
 end

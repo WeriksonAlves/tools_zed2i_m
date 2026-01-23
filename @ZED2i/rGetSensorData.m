@@ -2,67 +2,88 @@ function data = rGetSensorData(zed)
 %rGetSensorData Aggregate sensor data in a lab-friendly format.
 %
 % Returns a struct with stable fields:
-%   Timestamp (datetime)
-%   Connected (logical)
-%   HasImage, HasDepth, HasCalibration (logical)
-%   Image, Depth
-%   Calibration (struct)
-%   Metrics (struct)
-%   LastError (char/string)
+%   Timestamp            (datetime)
+%   Connected            (logical)
+%   HasImage, HasDepth   (logical)
+%   HasImu, HasPose      (logical)
+%   HasPointCloud        (logical)
+%   Image                (RGB frame or [])
+%   Depth                (depth frame or [])
+%   DepthMask            (logical mask of valid depth or [])
+%   Imu                  (struct)
+%   Pose                 (struct)
+%   PointCloud           (struct)
+%   Metrics              (struct with FPS/drops)
+%   LastError            (char/string)
 
+    % ---------------------------------------------------------------------
+    % Default shape (sem chamadas de I/O)
+    % ---------------------------------------------------------------------
     data = buildDefaultDataStruct(zed);
 
-    if ~zed.pFlag.Connected
-        data.LastError = 'Not connected. Call rConnect() first.';
+    % ---------------------------------------------------------------------
+    % Conectado?
+    % ---------------------------------------------------------------------
+    if ~safeFlag(zed.pFlag, "Connected")
+        data.LastError = "Not connected. Call rConnect() first.";
         return;
     end
 
-    % Grab streams (updates internal buffers and flags)
-    zed.rGrab();
+    % ---------------------------------------------------------------------
+    % Visual: image + depth (cada getter faz seu próprio receive)
+    % ---------------------------------------------------------------------
+    img = zed.rGetImage();
+    [depth, depthMask] = zed.rGetDepth();
 
-    % Copy buffers (lab-friendly snapshot)
-    data.HasImage = safeFlag(zed.pFlag, 'HasImage');
-    data.HasDepth = safeFlag(zed.pFlag, 'HasDepth');
+    data.Image     = img;
+    data.Depth     = depth;
+    data.DepthMask = depthMask;
 
-    data.Image = zed.rGetImage();
-    data.Depth = zed.rGetDepth();
+    data.HasImage = ~isempty(img)  && safeFlag(zed.pFlag, "HasImage");
+    data.HasDepth = ~isempty(depth) && safeFlag(zed.pFlag, "HasDepth");
 
-    % Optional IMU snapshot (lazy)
-    if isfield(zed.pPar, 'enableImu') && zed.pPar.enableImu
+    % ---------------------------------------------------------------------
+    % IMU (opcional, só se habilitado)
+    % ---------------------------------------------------------------------
+    if isfield(zed.pPar, "enableImu") && zed.pPar.enableImu
         imu = zed.rGetImu();
-        data.Imu = imu;
-        data.HasImu = safeFlag(zed.pFlag, 'HasImu');
-    else
-        data.Imu = struct();
-        data.HasImu = false;
+        data.Imu    = imu;
+        data.HasImu = safeFlag(zed.pFlag, "HasImu");
     end
 
-    % Optional Pose snapshot (lazy)
-    if isfield(zed.pPar, 'enablePose') && zed.pPar.enablePose
+    % ---------------------------------------------------------------------
+    % Pose (opcional, só se habilitado)
+    % ---------------------------------------------------------------------
+    if isfield(zed.pPar, "enablePose") && zed.pPar.enablePose
         p = zed.rGetPose();
-        data.Pose = p;
-        data.HasPose = safeFlag(zed.pFlag, 'HasPose');
-    else
-        data.Pose = struct();
-        data.HasPose = false;
-    end
-    % Optional PointCloud snapshot (do NOT auto-fetch; use last decoded if any)
-    if isfield(zed.pData, "PointCloud") && safeFlag(zed.pFlag, "HasPointCloud")
-        data.PointCloud = zed.pData.PointCloud;
-        data.HasPointCloud = true;
-    else
-        data.PointCloud = struct();
-        data.HasPointCloud = false;
+        data.Pose    = p;
+        data.HasPose = safeFlag(zed.pFlag, "HasPose");
     end
 
+    % ---------------------------------------------------------------------
+    % PointCloud (sem auto-fetch; usa último valor decodificado, se houver)
+    % ---------------------------------------------------------------------
+    if isfield(zed.pPar, "enablePointCloud") && zed.pPar.enablePointCloud
+        % Variante: heavy auto-fetch (explicity to config)
+        if isfield(zed.pPar, "autoFetchPointCloud") && zed.pPar.autoFetchPointCloud
+            try
+                % This may be a heavy operation
+                pc = zed.rGetPointCloud();
+            catch
+                % Ignore errors here; use last known point cloud
+            end
+        end
 
+        if isfield(zed.pData, "PointCloud") && safeFlag(zed.pFlag, "HasPointCloud")
+            data.PointCloud    = zed.pData.PointCloud;
+            data.HasPointCloud = true;
+        end
+    end
 
-
-    % Lazy calibration (use cached if available; otherwise attempt once)
-    [data.Calibration, data.HasCalibration] = getCalibrationSnapshot(zed);
-
-    % Metrics + last error
-    data.Metrics = safeGetMetrics(zed);
+    % ---------------------------------------------------------------------
+    % Metrics + last error (snapshot)
+    % ---------------------------------------------------------------------
+    data.Metrics   = safeGetMetrics(zed);
     data.LastError = safeLastError(zed);
 end
 
@@ -74,25 +95,30 @@ function data = buildDefaultDataStruct(zed)
 %buildDefaultDataStruct Create a deterministic output struct shape.
 
     data = struct();
-    data.Timestamp = datetime('now');
 
-    data.Connected = safeFlag(zed.pFlag, 'Connected');
-    data.HasImage = false;
-    data.HasDepth = false;
-    data.HasCalibration = safeFlag(zed.pFlag, 'HasCalibration');
-    data.HasImu = safeFlag(zed.pFlag, 'HasImu');
-    data.Imu = zed.rGetImu();
-    data.HasPose = safeFlag(zed.pFlag, 'HasPose');
-    data.Pose = struct();
-    data.HasPointCloud = safeFlag(zed.pFlag, 'HasPointCloud');
+    data.Timestamp = datetime("now");
+    data.Connected = safeFlag(zed.pFlag, "Connected");
+
+    % Flags
+    data.HasImage       = false;
+    data.HasDepth       = false;
+    data.HasPointCloud  = false;
+    data.HasImu         = safeFlag(zed.pFlag, "HasImu");
+    data.HasPose        = safeFlag(zed.pFlag, "HasPose");
+    data.HasPointCloud  = safeFlag(zed.pFlag, "HasPointCloud");
+
+    % Visual
+    data.Image     = [];
+    data.Depth     = [];
+    data.DepthMask = [];
+
+    % Outros sensores
+    data.Imu        = struct();
+    data.Pose       = struct();
     data.PointCloud = struct();
 
-
-
-    data.Image = [];
-    data.Depth = [];
-    data.Calibration = struct();
-    data.Metrics = safeGetMetrics(zed);
+    % Métricas + erro
+    data.Metrics   = safeGetMetrics(zed);
     data.LastError = safeLastError(zed);
 end
 
@@ -109,38 +135,10 @@ end
 function err = safeLastError(zed)
 %safeLastError Return the last error string if available.
 
-    err = '';
+    err = "";
 
-    if isfield(zed, 'pFlag') && isstruct(zed.pFlag) && isfield(zed.pFlag, 'LastError')
+    if isstruct(zed.pFlag) && isfield(zed.pFlag, "LastError")
         err = zed.pFlag.LastError;
-    end
-end
-
-function [calib, hasCalib] = getCalibrationSnapshot(zed)
-%getCalibrationSnapshot Return calibration struct and flag.
-%
-% Prefers cached calibration if available. Otherwise attempts a single fetch.
-% Never throws: returns empty struct on failure.
-
-    calib = struct();
-    hasCalib = safeFlag(zed.pFlag, 'HasCalibration');
-
-    if hasCalib && isfield(zed.pData, 'Calibration') && ~isempty(fieldnames(zed.pData.Calibration))
-        calib = zed.pData.Calibration;
-        return;
-    end
-
-    % Attempt once (rGetCalibration already caches on success)
-    try
-        calibTry = zed.rGetCalibration();
-        if ~isempty(fieldnames(calibTry))
-            calib = calibTry;
-            hasCalib = true;
-        end
-    catch
-        % Keep defaults on failure (no throw)
-        hasCalib = false;
-        calib = struct();
     end
 end
 
@@ -148,20 +146,22 @@ function metrics = safeGetMetrics(zed)
 %safeGetMetrics Return metrics struct with stable fields.
 
     metrics = struct( ...
-        'ImageFps', 0, ...
-        'DepthFps', 0, ...
-        'ImageDrops', 0, ...
-        'DepthDrops', 0 ...
+        "ImageFps",   0, ...
+        "DepthFps",   0, ...
+        "ImageDrops", 0, ...
+        "DepthDrops", 0 ...
     );
+    if isstruct(zed.pData) && ...
+       isfield(zed.pData, "Metrics") && ...
+       isstruct(zed.pData.Metrics)
 
-    if isfield(zed, 'pData') && isstruct(zed.pData) && isfield(zed.pData, 'Metrics')
         src = zed.pData.Metrics;
 
         % Copy only known fields (stable output contract)
-        metrics = copyIfField(metrics, src, 'ImageFps');
-        metrics = copyIfField(metrics, src, 'DepthFps');
-        metrics = copyIfField(metrics, src, 'ImageDrops');
-        metrics = copyIfField(metrics, src, 'DepthDrops');
+        metrics = copyIfField(metrics, src, "ImageFps");
+        metrics = copyIfField(metrics, src, "DepthFps");
+        metrics = copyIfField(metrics, src, "ImageDrops");
+        metrics = copyIfField(metrics, src, "DepthDrops");
     end
 end
 
