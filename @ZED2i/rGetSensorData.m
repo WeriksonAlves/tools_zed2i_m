@@ -63,11 +63,21 @@ function data = rGetSensorData(zed)
     % ---------------------------------------------------------------------
     % PointCloud (sem auto-fetch; usa último valor decodificado, se houver)
     % ---------------------------------------------------------------------
-    if safeFlag(zed.pFlag, "HasPointCloud") && ...
-       isfield(zed.pData, "PointCloud") && ...
-       ~isempty(zed.pData.PointCloud)
-        data.PointCloud    = zed.pData.PointCloud;
-        data.HasPointCloud = true;
+    if isfield(zed.pPar, "enablePointCloud") && zed.pPar.enablePointCloud
+        % Variante: heavy auto-fetch (explicity to config)
+        if isfield(zed.pPar, "autoFetchPointCloud") && zed.pPar.autoFetchPointCloud
+            try
+                % This may be a heavy operation
+                pc = zed.rGetPointCloud();
+            catch
+                % Ignore errors here; use last known point cloud
+            end
+        end
+
+        if isfield(zed.pData, "PointCloud") && safeFlag(zed.pFlag, "HasPointCloud")
+            data.PointCloud    = zed.pData.PointCloud;
+            data.HasPointCloud = true;
+        end
     end
 
     % ---------------------------------------------------------------------
@@ -92,6 +102,7 @@ function data = buildDefaultDataStruct(zed)
     % Flags
     data.HasImage       = false;
     data.HasDepth       = false;
+    data.HasPointCloud  = false;
     data.HasImu         = safeFlag(zed.pFlag, "HasImu");
     data.HasPose        = safeFlag(zed.pFlag, "HasPose");
     data.HasPointCloud  = safeFlag(zed.pFlag, "HasPointCloud");
