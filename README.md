@@ -3,39 +3,64 @@
 MATLAB wrapper for the **ZED2i stereo camera** using **ROS 2**, following the
 robotics laboratory class architecture pattern (`@Class` folders).
 
-This repository provides a **stable, minimal, and extensible interface**
-to access RGB images, depth maps, and camera calibration data from a ZED2i
-camera inside MATLAB.
+This repository provides a **stable, modular, and extensible MATLAB interface**
+to access **RGB images, depth maps, camera calibration, IMU, pose/odometry,
+and point clouds** from a ZED2i camera via ROS 2.
+
+The implementation is designed for **educational and experimental use in
+robotics laboratories**, emphasizing clarity, robustness, and reusability.
 
 ---
 
 ## Overview
 
-This project implements a MATLAB interface to the **ZED2i** camera through
-the official **ZED ROS 2 wrapper**, targeting **experimental and educational
-use in robotics laboratories**.
+This project implements a MATLAB interface to the **ZED2i** camera through the
+official **ZED ROS 2 wrapper**, targeting **laboratory classes, research
+prototyping, and perception experiments**.
 
 The design follows the same architectural conventions used by existing
 laboratory sensor and robot classes, enabling:
 
 * consistent APIs across sensors,
 * predictable lifecycle management,
-* safe integration into control, perception, and mapping pipelines.
+* safe integration into control, perception, and mapping pipelines,
+* optional and modular activation of sensors (IMU, pose, point cloud).
 
-The implementation has been tested with **MATLAB R2025a**.
+The implementation has been tested with **MATLAB R2025a** and ROS 2.
 
 ---
 
 ## Features
 
+### Core
+
 * RGB image acquisition
-* Depth image acquisition (metric, in meters)
+* Depth image acquisition (metric, meters)
 * Camera calibration retrieval via ROS 2 `CameraInfo`
 * Lazy caching of calibration parameters
 * Aggregated, lab-style access via `rGetSensorData`
 * Optional conversion to MATLAB `cameraIntrinsics`
-* Efficient real-time visualization (RGB-D)
+* Efficient real-time RGB-D visualization
+
+### Extended Sensors (Optional)
+
+* IMU access (`sensor_msgs/Imu`)
+
+  * Angular velocity
+  * Linear acceleration
+* Pose / odometry access (`nav_msgs/Odometry`)
+
+  * Position (XYZ)
+  * Orientation (Euler angles in radians)
+* Registered point cloud access (`sensor_msgs/PointCloud2`)
+* Real-time point cloud visualization with fixed spatial scale
+
+### Design
+
 * Minimal, modular, and extensible class design
+* Explicit enable/disable of optional sensors via constructor
+* Stable output structs for safe downstream use
+* Robust error handling and defensive defaults
 
 ---
 
@@ -46,15 +71,20 @@ The implementation has been tested with **MATLAB R2025a**.
 * MATLAB **R2025a**
 * **Robotics System Toolbox** (ROS 2 support required)
 * *(Optional)* **Computer Vision Toolbox**
-  Required only for the `cameraIntrinsics` helper
+
+  * Required only for:
+
+    * `cameraIntrinsics`
+    * `pointCloud / pcshow` visualization
 
 ### ROS 2 and ZED
 
 * ROS 2 environment properly sourced
 * ZED ROS 2 wrapper installed and running
-* A ZED2i camera connected and detected by the ZED SDK
+* ZED SDK correctly installed
+* A ZED2i camera connected and detected
 
-> ⚠️ This wrapper **does not start the ZED node**.
+> ⚠️ This MATLAB wrapper **does not start the ZED node**.
 > The ZED ROS 2 wrapper must already be running and publishing topics.
 
 ---
@@ -69,12 +99,15 @@ Typical launch example (outside MATLAB):
 ros2 launch zed_wrapper zed_camera.launch.py camera_model:=zed2i
 ```
 
-You should see topics similar to:
+Expected topics include:
 
 ```bash
 /zed/zed_node/left/image_rect_color
 /zed/zed_node/depth/depth_registered
 /zed/zed_node/left/camera_info
+/zed/zed_node/imu/data
+/zed/zed_node/odom
+/zed/zed_node/point_cloud/cloud_registered
 ```
 
 These topics are **consumed directly** by the MATLAB class.
@@ -85,12 +118,14 @@ These topics are **consumed directly** by the MATLAB class.
 
 Default topics (configurable via constructor):
 
-* RGB image
-  `/zed/zed_node/left/image_rect_color`
-* Depth image
-  `/zed/zed_node/depth/depth_registered`
-* Camera calibration
-  `/zed/zed_node/left/camera_info`
+| Data        | Topic                                        |
+| ----------- | -------------------------------------------- |
+| RGB Image   | `/zed/zed_node/left/image_rect_color`        |
+| Depth Image | `/zed/zed_node/depth/depth_registered`       |
+| Camera Info | `/zed/zed_node/left/camera_info`             |
+| IMU         | `/zed/zed_node/imu/data`                     |
+| Pose / Odom | `/zed/zed_node/odom`                         |
+| Point Cloud | `/zed/zed_node/point_cloud/cloud_registered` |
 
 ---
 
@@ -98,7 +133,7 @@ Default topics (configurable via constructor):
 
 ```text
 tools_zed2i_m/
-├── @ZED2i/        % MATLAB class implementation
+├── @ZED2i/                 % MATLAB class implementation
 │   ├── ZED2i.m
 │   ├── iParameters.m
 │   ├── iControlVariables.m
@@ -109,11 +144,16 @@ tools_zed2i_m/
 │   ├── rGetDepth.m
 │   ├── rGetCalibration.m
 │   ├── rGetIntrinsics.m
+│   ├── rGetImu.m
+│   ├── rGetPose.m
+│   ├── rGetPointCloud.m
 │   └── rGetSensorData.m
 │
-├── Examples/      % Usage and validation examples
+├── Examples/               % Usage and validation demos
 │   ├── demo_zed2i_calibration.m
-│   └── demo_zed2i_rgbd.m
+│   ├── demo_zed2i_rgbd.m
+│   ├── demo_zed2i_state.m
+│   └── demo_zed2i_pointcloud.m
 │
 ├── README.md
 └── LICENSE
@@ -143,11 +183,11 @@ zed.rDisconnect();
 
 ### 2. Aggregated Access (Recommended)
 
-The recommended way to access data is via `rGetSensorData`, which returns
-a **snapshot struct** containing all relevant information.
+The recommended way to access data is via `rGetSensorData`, which returns a
+**stable snapshot struct** aggregating all enabled sensors.
 
 ```matlab
-zed = ZED2i();
+zed = ZED2i("enableImu", true, "enablePose", true);
 zed.rConnect();
 
 data = zed.rGetSensorData();
@@ -158,37 +198,65 @@ disp(data.Metrics);
 zed.rDisconnect();
 ```
 
-Returned fields include:
+Returned fields may include:
 
-* `Image` (RGB)
-* `Depth` (meters, `single`, NaN for invalid)
+* `Image`
+* `Depth`
+* `Imu`
+* `Pose`
+* `PointCloud`
 * `Calibration`
-* `Metrics` (FPS, drops)
-* `Flags` (connection and availability)
+* `Metrics`
 * `Timestamp`
+* `Connected`
 * `LastError`
+
+Availability is indicated by `HasImage`, `HasDepth`, `HasImu`, `HasPose`,
+`HasPointCloud`.
 
 ---
 
 ### 3. RGB-D Visualization
 
-A real-time RGB-D preview with stable performance:
-
 ```matlab
 run Examples/demo_zed2i_rgbd.m
 ```
 
+Provides a real-time RGB-D preview with:
+
+* FPS estimation
+* drop counters
+* adaptive depth contrast
+
 ---
 
-### 4. Camera Calibration
-
-Retrieve and inspect camera calibration directly from ROS 2:
+### 4. IMU + Pose State Demo
 
 ```matlab
-run Examples/demo_zed2i_calibration.m
+run Examples/demo_zed2i_state.m
 ```
 
-This uses `sensor_msgs/CameraInfo` and caches results internally.
+Demonstrates:
+
+* IMU angular velocity and linear acceleration
+* Pose position and orientation (Euler angles)
+* Trajectory plotting
+* Time-series plots of motion quantities
+
+---
+
+### 5. Point Cloud Visualization
+
+```matlab
+run Examples/demo_zed2i_pointcloud.m
+```
+
+Features:
+
+* Snapshot or real-time point cloud acquisition
+* Subsampling for performance
+* Fixed spatial scale (e.g., 4×4×4 m cube)
+* Safe visualization with `pcshow`
 
 ---
 
@@ -197,10 +265,10 @@ This uses `sensor_msgs/CameraInfo` and caches results internally.
 * Depth values are provided **in meters** (`single` precision).
 * Invalid depth values are represented as `NaN`.
 * Calibration data is fetched **once** and cached.
-* No ROS parameters are modified by MATLAB.
-* The wrapper consumes data **exactly as published** by the ZED ROS 2 node.
-* Resolution, depth mode, and confidence thresholds must be configured
-  in the ZED ROS 2 wrapper.
+* Optional sensors are enabled explicitly to reduce overhead.
+* MATLAB does **not** modify ROS parameters.
+* All data is consumed **exactly as published** by the ROS 2 ZED node.
+* Resolution, depth mode, and filters must be configured on the ROS side.
 
 ---
 
@@ -208,12 +276,12 @@ This uses `sensor_msgs/CameraInfo` and caches results internally.
 
 This wrapper is intended for:
 
-* robotics laboratory experiments,
-* perception and mapping pipelines,
-* prototyping algorithms in MATLAB,
-* educational and research activities.
+* robotics laboratory classes,
+* perception and mapping experiments,
+* MATLAB-based prototyping,
+* academic research and teaching.
 
-It is **not** intended to replace the ZED SDK or ROS-side processing.
+It is **not** intended to replace the ZED SDK or ROS-side processing pipelines.
 
 ---
 

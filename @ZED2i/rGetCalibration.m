@@ -1,42 +1,45 @@
-function calib = rGetCalibration(zed)
+function [calib, intr] = rGetCalibration(zed)
 %rGetCalibration Get camera intrinsics/extrinsics from ROS2 CameraInfo.
 %
-% Returns a struct with:
-%   K (3x3), D (Nx1), R (3x3), P (3x4),
-%   Width, Height, DistortionModel
+% Outputs:
+%   calib : struct with fields
+%       K (3x3), D (Nx1), R (3x3), P (3x4),
+%       Width, Height, DistortionModel
+%   intr  : cameraIntrinsics (Computer Vision Toolbox), or [] if unavailable
 
     calib = buildEmptyCalibrationStruct();
+    intr  = [];
 
     % ------------------------------------------------------------
-    % Fast path: return cached calibration if already available
+    % Fast path: use cached calibration if already available
     % ------------------------------------------------------------
     if safeFlag(zed.pFlag, "HasCalibration") && ...
        isfield(zed.pData, "Calibration") && ...
-       ~isempty(fieldnames(zed.pData.Calibration))
+       isfield(zed.pData.Calibration, "K") && ...
+       ~isempty(zed.pData.Calibration.K)
+
         calib = zed.pData.Calibration;
+        intr  = safeParseIntrinsics(calib);
         return;
     end
 
     % ------------------------------------------------------------
-    % Safety check
+    % Safety check: require connection
     % ------------------------------------------------------------
     if ~safeFlag(zed.pFlag, "Connected")
         zed.pFlag.LastError = "Not connected. Call rConnect() first.";
         return;
     end
 
+    % ------------------------------------------------------------
+    % Get CameraInfo message (prefer cached, otherwise receive)
+    % ------------------------------------------------------------
     msg = [];
 
-    % ------------------------------------------------------------
-    % Try cached ROS message
-    % ------------------------------------------------------------
     if isfield(zed.pCom, "lastMsgInfo") && ~isempty(zed.pCom.lastMsgInfo)
         msg = zed.pCom.lastMsgInfo;
     end
 
-    % ------------------------------------------------------------
-    % Blocking receive (only if needed)
-    % ------------------------------------------------------------
     if isempty(msg)
         try
             msg = receive(zed.pCom.subInfo, zed.pPar.timeoutSec);
@@ -48,7 +51,7 @@ function calib = rGetCalibration(zed)
     end
 
     % ------------------------------------------------------------
-    % Parse CameraInfo
+    % Parse CameraInfo -> calib
     % ------------------------------------------------------------
     try
         calib = parseCameraInfoMessage(msg);
@@ -59,8 +62,15 @@ function calib = rGetCalibration(zed)
 
     catch excp
         zed.pFlag.LastError = "CameraInfo parse failed: " + excp.message;
-        % mantém calib vazio (shape conhecido)
+        calib = buildEmptyCalibrationStruct();
+        intr  = [];
+        return;
     end
+
+    % ------------------------------------------------------------
+    % Optionally build MATLAB cameraIntrinsics
+    % ------------------------------------------------------------
+    intr = safeParseIntrinsics(calib);
 end
 
 % -------------------------------------------------------------------------
@@ -112,4 +122,38 @@ function calib = parseCameraInfoMessage(msg)
 
     % Em ROS2, distortion_model vem como char/string; normalizamos para char
     calib.DistortionModel = char(msg.distortion_model);
+end
+
+function intr = safeParseIntrinsics(calib)
+%safeParseIntrinsics Build cameraIntrinsics if possible (optional dependency).
+%
+% Returns [] se:
+%   - calib incompleto (sem K ou tamanho), ou
+%   - Computer Vision Toolbox indisponível.
+
+    intr = [];
+
+    % Checagem rápida de consistência
+    if ~isstruct(calib) || ~isfield(calib, "K") || isempty(calib.K) || ...
+       ~isfield(calib, "Width") || isempty(calib.Width) || ...
+       ~isfield(calib, "Height") || isempty(calib.Height)
+        return;
+    end
+
+    try
+        fx = calib.K(1, 1);
+        fy = calib.K(2, 2);
+        cx = calib.K(1, 3);
+        cy = calib.K(2, 3);
+
+        % MATLAB expects [fx fy] and principal point [cx cy]
+        focalLength    = [fx fy];
+        principalPoint = [cx cy];
+        imageSize      = [calib.Height calib.Width]; % [rows cols]
+
+        intr = cameraIntrinsics(focalLength, principalPoint, imageSize);
+    catch
+        % Falha provavelmente por ausência do CV Toolbox ou dados inválidos
+        intr = [];
+    end
 end

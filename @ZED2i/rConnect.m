@@ -5,14 +5,16 @@ function rConnect(zed)
 % it returns immediately without side effects.
 
     % Reset last error at the beginning of the operation
-    zed.pFlag.LastError = '';
+    zed.pFlag.LastError = "";
 
     % Fast path: already connected, nothing to do
     if isfield(zed.pFlag, "Connected") && zed.pFlag.Connected
         return;
     end
 
+    % ---------------------------------------------------------------------
     % Validate minimal configuration before touching ROS
+    % ---------------------------------------------------------------------
     if ~isfield(zed.pPar, "nodeName") || strlength(string(zed.pPar.nodeName)) == 0
         zed.pFlag.LastError = "Invalid nodeName in pPar.";
         error("ZED2i:rConnect:InvalidNodeName", zed.pFlag.LastError);
@@ -32,14 +34,16 @@ function rConnect(zed)
         end
     end
 
+    % ---------------------------------------------------------------------
     % Clean any previous partial state to avoid leaks or inconsistent flags
-    resetCommState(zed);
+    % ---------------------------------------------------------------------
+    zed.mAuxResetCommState();
 
     try
         % Create ROS2 node
         zed.pCom.node = ros2node(zed.pPar.nodeName);
 
-        % Create subscribers
+        % Required subscribers
         zed.pCom.subImage = createSubscriber( ...
             zed, zed.pPar.topicImage, "sensor_msgs/Image");
 
@@ -49,6 +53,27 @@ function rConnect(zed)
         zed.pCom.subInfo = createSubscriber( ...
             zed, zed.pPar.topicCameraInfo, "sensor_msgs/CameraInfo");
 
+        % Optional IMU subscriber
+        if isfield(zed.pPar, "enableImu") && zed.pPar.enableImu
+            zed.pCom.subImu = createSubscriber( ...
+                zed, zed.pPar.topicImu, "sensor_msgs/Imu");
+            zed.pFlag.HasImu = false;
+        end
+
+        % Optional Pose subscriber
+        if isfield(zed.pPar, "enablePose") && zed.pPar.enablePose
+            zed.pCom.subOdom = createSubscriber( ...
+                zed, zed.pPar.topicOdom, "nav_msgs/Odometry");
+            zed.pFlag.HasPose = false;
+        end
+
+        % Optional PointCloud subscriber
+        if isfield(zed.pPar, "enablePointCloud") && zed.pPar.enablePointCloud
+            zed.pCom.subPointCloud = createSubscriber( ...
+                zed, zed.pPar.topicPointCloud, "sensor_msgs/PointCloud2");
+            zed.pFlag.HasPointCloud = false;
+        end
+
         % Initialize flags after successful connection
         zed.pFlag.Connected      = true;
         zed.pFlag.HasImage       = false;
@@ -57,54 +82,33 @@ function rConnect(zed)
 
     catch excp
         % Ensure a consistent disconnected state on failure
-        zed.pFlag.Connected = false;
-        zed.pFlag.HasImage = false;
-        zed.pFlag.HasDepth = false;
+        zed.pFlag.Connected      = false;
+        zed.pFlag.HasImage       = false;
+        zed.pFlag.HasDepth       = false;
         zed.pFlag.HasCalibration = false;
+
+        if isfield(zed.pFlag, "HasImu")
+            zed.pFlag.HasImu = false;
+        end
+        if isfield(zed.pFlag, "HasPose")
+            zed.pFlag.HasPose = false;
+        end
+        if isfield(zed.pFlag, "HasPointCloud")
+            zed.pFlag.HasPointCloud = false;
+        end
 
         zed.pFlag.LastError = excp.message;
 
         % Best effort to clean up partially created node/subscribers
-        resetCommState(zed);
+        zed.mAuxResetCommState();
 
         rethrow(excp);
     end
 end
 
 % -------------------------------------------------------------------------
-% Local helpers
+% Local helper
 % -------------------------------------------------------------------------
-
-function resetCommState(zed)
-%resetCommState Clear communication-related fields and subscribers.
-
-    if isfield(zed, "pCom") && ~isempty(zed.pCom)
-        % Clear subscribers if they exist
-        if isfield(zed.pCom, "subImage") && ~isempty(zed.pCom.subImage)
-            clear zed.pCom.subImage;
-        end
-        if isfield(zed.pCom, "subDepth") && ~isempty(zed.pCom.subDepth)
-            clear zed.pCom.subDepth;
-        end
-        if isfield(zed.pCom, "subInfo") && ~isempty(zed.pCom.subInfo)
-            clear zed.pCom.subInfo;
-        end
-
-        % Clear node if it exists
-        if isfield(zed.pCom, "node") && ~isempty(zed.pCom.node)
-            clear zed.pCom.node;
-        end
-    end
-
-    % Reset communication struct to a known baseline
-    zed.pCom.node        = [];
-    zed.pCom.subImage    = [];
-    zed.pCom.subDepth    = [];
-    zed.pCom.subInfo     = [];
-    zed.pCom.lastMsgImage = [];
-    zed.pCom.lastMsgDepth = [];
-    zed.pCom.lastMsgInfo  = [];
-end
 
 function sub = createSubscriber(zed, topic, msgType)
 %createSubscriber Create a ROS2 subscriber with basic validation.
