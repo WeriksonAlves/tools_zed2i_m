@@ -6,13 +6,10 @@ function pose = rGetPose(zed)
 %   FrameId (string)
 %   ChildFrameId (string)
 %   Position (1x3) [x y z] (m)
-%   OrientationQuat (1x4) [w x y z]
-%   LinearVelocity (1x3) (m/s)
-%   AngularVelocity (1x3) (rad/s)
+%   OrientationEuler (1x3) [roll pitch yaw] (rad)
 %   PoseCovariance (6x6)
 %   TwistCovariance (6x6)
 
-    % Não alocamos struct completo aqui; só em caso de erro ou no parse.
     pose = struct();
 
     % ---------------------------------------------------------------------
@@ -76,9 +73,9 @@ function pose = buildEmptyPoseStruct()
         "FrameId", "", ...
         "ChildFrameId", "", ...
         "Position", [NaN NaN NaN], ...
-        "OrientationQuat", [NaN NaN NaN NaN], ...
-        "LinearVelocity", [NaN NaN NaN], ...
-        "AngularVelocity", [NaN NaN NaN], ...
+        "OrientationEuler", [NaN NaN NaN], ...
+        "LinearVelocity", [NaN NaN NaN], ...   % mantido para compat futuro
+        "AngularVelocity", [NaN NaN NaN], ...  % mantido para compat futuro
         "PoseCovariance", NaN(6, 6), ...
         "TwistCovariance", NaN(6, 6) ...
     );
@@ -146,17 +143,13 @@ function pose = parseOdomMessage(msg)
     q = msg.pose.pose.orientation; % ROS: x,y,z,w
 
     position = [double(p.x), double(p.y), double(p.z)];
-    orientationQuat = [double(q.w), double(q.x), double(q.y), double(q.z)];
 
-    % Twist
-    v = msg.twist.twist.linear;
-    w = msg.twist.twist.angular;
-
-    linVel = [double(v.x), double(v.y), double(v.z)];
-    angVel = [double(w.x), double(w.y), double(w.z)];
+    % Converte quaternion [w x y z] -> [roll pitch yaw] (rad)
+    qwxyz = [double(q.w), double(q.x), double(q.y), double(q.z)];
+    orientationEul = mAuxQuatToEulerRad(qwxyz);
 
     % Covariances (flattened arrays)
-    poseCov = NaN(6, 6);
+    poseCov  = NaN(6, 6);
     twistCov = NaN(6, 6);
 
     if isfield(msg.pose, "covariance")
@@ -171,10 +164,51 @@ function pose = parseOdomMessage(msg)
         "FrameId", frameId, ...
         "ChildFrameId", childFrameId, ...
         "Position", position, ...
-        "OrientationQuat", orientationQuat, ...
-        "LinearVelocity", linVel, ...
-        "AngularVelocity", angVel, ...
+        "OrientationEuler", orientationEul, ...
+        "LinearVelocity", [NaN NaN NaN], ...
+        "AngularVelocity", [NaN NaN NaN], ...
         "PoseCovariance", poseCov, ...
         "TwistCovariance", twistCov ...
     );
+end
+
+function eul = mAuxQuatToEulerRad(q)
+%mAuxQuatToEulerRad Convert quaternion [w x y z] to [roll pitch yaw] (rad).
+%
+%   eul = mAuxQuatToEulerRad(q)
+%
+%   Input:
+%       q  - quaternion em formato [w x y z], 1x4 ou Nx4.
+%
+%   Output:
+%       eul - [N x 3] com [roll pitch yaw] em rad (convenção ZYX).
+
+    if ~ismatrix(q) || size(q, 2) ~= 4
+        error("mAuxQuatToEulerRad:InvalidSize", ...
+            "Input q must be of size Nx4 with format [w x y z].");
+    end
+
+    q = double(q);
+
+    w = q(:, 1);
+    x = q(:, 2);
+    y = q(:, 3);
+    z = q(:, 4);
+
+    % roll (X-axis rotation)
+    sinr_cosp = 2 .* (w .* x + y .* z);
+    cosr_cosp = 1 - 2 .* (x.^2 + y.^2);
+    roll = atan2(sinr_cosp, cosr_cosp);
+
+    % pitch (Y-axis rotation)
+    sinp = 2 .* (w .* y - z .* x);
+    sinp = max(min(sinp, 1), -1);  % clamp numérico
+    pitch = asin(sinp);
+
+    % yaw (Z-axis rotation)
+    siny_cosp = 2 .* (w .* z + x .* y);
+    cosy_cosp = 1 - 2 .* (y.^2 + z.^2);
+    yaw = atan2(siny_cosp, cosy_cosp);
+
+    eul = [roll, pitch, yaw];
 end
