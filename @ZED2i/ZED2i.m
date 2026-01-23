@@ -61,8 +61,8 @@ classdef ZED2i < handle
             obj.pCom  = struct();
 
             % -------------------- Configuração padrão --------------------
-            obj.iParameters();
-            obj.iControlVariables();
+            obj.cfgParameters();
+            obj.cfgState();
 
             % -------------------- Overrides via Name-Value ----------------
             if ~isempty(nameValueArgs)
@@ -86,7 +86,7 @@ function applyNameValueOverrides(obj, varargin)
             "Name-Value arguments must come in pairs.");
     end
 
-    % Lista de parâmetros suportados (mantida em sincronia com iParameters)
+    % Lista de parâmetros suportados (mantida em sincronia com cfgParameters)
     validNames = [ ...
         "timeoutSec", ...
         "fpsAlpha", ...

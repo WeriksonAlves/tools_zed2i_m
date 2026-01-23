@@ -1,5 +1,5 @@
-function iParameters(zed)
-%iParameters Define default parameters for the ZED2i MATLAB ROS2 wrapper.
+function cfgParameters(zed)
+%cfgParameters Define default parameters for the ZED2i MATLAB ROS2 wrapper.
 %
 % This method is responsible only for setting configuration values
 % (topics, timeouts, behavior flags). No ROS calls are made here.

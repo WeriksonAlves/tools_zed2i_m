@@ -135,8 +135,8 @@ Default topics (configurable via constructor):
 tools_zed2i_m/
 ├── @ZED2i/                 % MATLAB class implementation
 │   ├── ZED2i.m
-│   ├── iParameters.m
-│   ├── iControlVariables.m
+│   ├── cfgParameters.m
+│   ├── cfgState.m
 │   ├── lcConnect.m
 │   ├── lcDisconnect.m
 │   ├── rGrab.m

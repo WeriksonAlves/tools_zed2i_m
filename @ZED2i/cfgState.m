@@ -1,5 +1,5 @@
-function iControlVariables(zed)
-%iControlVariables Initialize flags, buffers, and minimal metrics.
+function cfgState(zed)
+%cfgState Initialize flags, buffers, and minimal metrics.
 %
 % Responsável apenas por colocar o objeto em um estado interno conhecido,
 % sem tocar em ROS (sem criar nó ou subscribers).
