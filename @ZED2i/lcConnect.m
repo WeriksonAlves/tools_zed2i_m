@@ -1,5 +1,5 @@
-function rConnect(zed)
-%rConnect Create ROS2 node and image/depth/camera_info subscribers.
+function lcConnect(zed)
+%lcConnect Create ROS2 node and image/depth/camera_info subscribers.
 %
 % This method is idempotent: if the object is already connected,
 % it returns immediately without side effects.
@@ -17,7 +17,7 @@ function rConnect(zed)
     % ---------------------------------------------------------------------
     if ~isfield(zed.pPar, "nodeName") || strlength(string(zed.pPar.nodeName)) == 0
         zed.pFlag.LastError = "Invalid nodeName in pPar.";
-        error("ZED2i:rConnect:InvalidNodeName", zed.pFlag.LastError);
+        error("ZED2i:lcConnect:InvalidNodeName", zed.pFlag.LastError);
     end
 
     requiredTopics = { ...
@@ -30,14 +30,14 @@ function rConnect(zed)
         fieldName = requiredTopics{k, 1};
         if ~isfield(zed.pPar, fieldName) || strlength(string(zed.pPar.(fieldName))) == 0
             zed.pFlag.LastError = "Missing or empty topic configuration: " + fieldName;
-            error("ZED2i:rConnect:InvalidTopicConfig", zed.pFlag.LastError);
+            error("ZED2i:lcConnect:InvalidTopicConfig", zed.pFlag.LastError);
         end
     end
 
     % ---------------------------------------------------------------------
     % Clean any previous partial state to avoid leaks or inconsistent flags
     % ---------------------------------------------------------------------
-    zed.mAuxResetCommState();
+    zed.utilResetCommState();
 
     try
         % Create ROS2 node
@@ -100,7 +100,7 @@ function rConnect(zed)
         zed.pFlag.LastError = excp.message;
 
         % Best effort to clean up partially created node/subscribers
-        zed.mAuxResetCommState();
+        zed.utilResetCommState();
 
         rethrow(excp);
     end
@@ -116,7 +116,7 @@ function sub = createSubscriber(zed, topic, msgType)
     try
         sub = ros2subscriber(zed.pCom.node, topic, msgType);
     catch excp
-        error("ZED2i:rConnect:SubscriberCreationFailed", ...
+        error("ZED2i:lcConnect:SubscriberCreationFailed", ...
             "Failed to create subscriber for topic '%s' (%s): %s", ...
             topic, msgType, excp.message);
     end

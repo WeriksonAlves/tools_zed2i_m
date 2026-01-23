@@ -1,5 +1,5 @@
-function [calib, intr] = rGetCalibration(zed)
-%rGetCalibration Get camera intrinsics/extrinsics from ROS2 CameraInfo.
+function [calib, intr] = getCalibration(zed)
+%getCalibration Get camera intrinsics/extrinsics from ROS2 CameraInfo.
 %
 % Outputs:
 %   calib : struct with fields
@@ -27,7 +27,7 @@ function [calib, intr] = rGetCalibration(zed)
     % Safety check: require connection
     % ------------------------------------------------------------
     if ~safeFlag(zed.pFlag, "Connected")
-        zed.pFlag.LastError = "Not connected. Call rConnect() first.";
+        zed.pFlag.LastError = "Not connected. Call lcConnect() first.";
         return;
     end
 

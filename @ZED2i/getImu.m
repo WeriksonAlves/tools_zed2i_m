@@ -1,5 +1,5 @@
-function imu = rGetImu(zed)
-%rGetImu Get IMU data from ROS2 sensor_msgs/Imu (optional feature).
+function imu = getImu(zed)
+%getImu Get IMU data from ROS2 sensor_msgs/Imu (optional feature).
 %
 % Returns a struct with stable fields:
 %   Timestamp                 (datetime)
@@ -18,7 +18,7 @@ function imu = rGetImu(zed)
     % Sanity checks
     % ---------------------------------------------------------------------
     if ~safeFlag(zed.pFlag, "Connected")
-        zed.pFlag.LastError = "Not connected. Call rConnect() first.";
+        zed.pFlag.LastError = "Not connected. Call lcConnect() first.";
         imu = buildEmptyImuStruct();
         zed.pFlag.HasImu = false;
         return;
@@ -26,7 +26,7 @@ function imu = rGetImu(zed)
 
     if ~isfield(zed.pCom, "subImu") || isempty(zed.pCom.subImu)
         zed.pFlag.LastError = ...
-            "IMU subscriber not initialized. Enable IMU (enableImu=true) before rConnect().";
+            "IMU subscriber not initialized. Enable IMU (enableImu=true) before lcConnect().";
         imu = buildEmptyImuStruct();
         zed.pFlag.HasImu = false;
         return;

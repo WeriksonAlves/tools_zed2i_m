@@ -1,10 +1,10 @@
-function rDisconnect(zed)
-%rDisconnect Release ROS2 resources and reset communication state.
+function lcDisconnect(zed)
+%lcDisconnect Release ROS2 resources and reset communication state.
 %
 % This method is idempotent: it can be called multiple times safely.
 
     % Sempre fazemos um cleanup defensivo da comunicação
-    zed.mAuxResetCommState();
+    zed.utilResetCommState();
 
     % Flags em estado desconectado conhecido
     zed.pFlag.Connected      = false;

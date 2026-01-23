@@ -1,7 +1,7 @@
-function [depth, validMask] = rGetDepth(zed)
-%rGetDepth Blocking receive + decode of the depth stream with sanitization.
+function [depth, validMask] = getDepth(zed)
+%getDepth Blocking receive + decode of the depth stream with sanitization.
 %
-%   [depth, validMask] = zed.rGetDepth()
+%   [depth, validMask] = zed.getDepth()
 %
 % depth     : depth frame (single, meters), or [] if unavailable
 % validMask : logical mask of valid pixels, or [] if depth empty
@@ -13,14 +13,14 @@ function [depth, validMask] = rGetDepth(zed)
     % Sanity checks
     % ---------------------------------------------------------------------
     if ~safeFlag(zed.pFlag, "Connected")
-        zed.pFlag.LastError = "Not connected. Call rConnect() first.";
+        zed.pFlag.LastError = "Not connected. Call lcConnect() first.";
         zed.pFlag.HasDepth = false;
         return;
     end
 
     if ~isfield(zed.pCom, "subDepth") || isempty(zed.pCom.subDepth)
         zed.pFlag.LastError = ...
-            "Depth subscriber not initialized. Check topics and rConnect().";
+            "Depth subscriber not initialized. Check topics and lcConnect().";
         zed.pFlag.HasDepth = false;
         return;
     end
@@ -34,14 +34,14 @@ function [depth, validMask] = rGetDepth(zed)
 
         depthRaw = rosReadImage(msgDepth);
 
-        depth = zed.mAuxSanitizeDepth(depthRaw);
+        depth = zed.utilSanitizeDepth(depthRaw);
         validMask = isfinite(depth) & (depth > 0);
 
         zed.pData.Depth     = depth;
         zed.pFlag.HasDepth  = true;
         zed.pFlag.LastError = "";
 
-        zed.mAuxUpdateFps("depth");
+        zed.utilUpdateFps("depth");
 
     catch excp
         if isfield(zed.pData, "Metrics") && isfield(zed.pData.Metrics, "DepthDrops")

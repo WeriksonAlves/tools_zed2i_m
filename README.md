@@ -38,7 +38,7 @@ The implementation has been tested with **MATLAB R2025a** and ROS 2.
 * Depth image acquisition (metric, meters)
 * Camera calibration retrieval via ROS 2 `CameraInfo`
 * Lazy caching of calibration parameters
-* Aggregated, lab-style access via `rGetSensorData`
+* Aggregated, lab-style access via `getSensorData`
 * Optional conversion to MATLAB `cameraIntrinsics`
 * Efficient real-time RGB-D visualization
 
@@ -135,19 +135,19 @@ Default topics (configurable via constructor):
 tools_zed2i_m/
 ├── @ZED2i/                 % MATLAB class implementation
 │   ├── ZED2i.m
-│   ├── iParameters.m
-│   ├── iControlVariables.m
-│   ├── rConnect.m
-│   ├── rDisconnect.m
+│   ├── cfgParameters.m
+│   ├── cfgState.m
+│   ├── lcConnect.m
+│   ├── lcDisconnect.m
 │   ├── rGrab.m
-│   ├── rGetImage.m
-│   ├── rGetDepth.m
-│   ├── rGetCalibration.m
-│   ├── rGetIntrinsics.m
-│   ├── rGetImu.m
-│   ├── rGetPose.m
-│   ├── rGetPointCloud.m
-│   └── rGetSensorData.m
+│   ├── getImage.m
+│   ├── getDepth.m
+│   ├── getCalibration.m
+│   ├── getIntrinsics.m
+│   ├── getImu.m
+│   ├── getPose.m
+│   ├── getPointCloud.m
+│   └── getSensorData.m
 │
 ├── Examples/               % Usage and validation demos
 │   ├── demo_zed2i_calibration.m
@@ -167,35 +167,35 @@ tools_zed2i_m/
 
 ```matlab
 zed = ZED2i();
-zed.rConnect();
+zed.lcConnect();
 
 for k = 1:100
     if zed.rGrab()
-        imshow(zed.rGetImage());
+        imshow(zed.getImage());
         drawnow;
     end
 end
 
-zed.rDisconnect();
+zed.lcDisconnect();
 ```
 
 ---
 
 ### 2. Aggregated Access (Recommended)
 
-The recommended way to access data is via `rGetSensorData`, which returns a
+The recommended way to access data is via `getSensorData`, which returns a
 **stable snapshot struct** aggregating all enabled sensors.
 
 ```matlab
 zed = ZED2i("enableImu", true, "enablePose", true);
-zed.rConnect();
+zed.lcConnect();
 
-data = zed.rGetSensorData();
+data = zed.getSensorData();
 
 imshow(data.Image);
 disp(data.Metrics);
 
-zed.rDisconnect();
+zed.lcDisconnect();
 ```
 
 Returned fields may include:

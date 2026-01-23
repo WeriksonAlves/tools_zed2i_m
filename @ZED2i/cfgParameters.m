@@ -1,5 +1,5 @@
-function iParameters(zed)
-%iParameters Define default parameters for the ZED2i MATLAB ROS2 wrapper.
+function cfgParameters(zed)
+%cfgParameters Define default parameters for the ZED2i MATLAB ROS2 wrapper.
 %
 % This method is responsible only for setting configuration values
 % (topics, timeouts, behavior flags). No ROS calls are made here.
@@ -45,7 +45,7 @@ function iParameters(zed)
 
     zed.pPar.topicPointCloud      = "/zed/zed_node/point_cloud/cloud_registered";
     zed.pPar.enablePointCloud     = false;   % default: off
-    zed.pPar.autoFetchPointCloud  = false;   % NEW: rGetSensorData não faz fetch pesado por padrão
+    zed.pPar.autoFetchPointCloud  = false;
 
     
 
