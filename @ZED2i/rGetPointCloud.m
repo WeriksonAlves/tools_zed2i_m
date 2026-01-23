@@ -7,57 +7,54 @@ function pc = rGetPointCloud(zed)
 %   XYZ        (Nx3 double) [x y z] in meters
 %   HasColor   (logical)
 %   Color      (Nx3 uint8) or [] if not available
-%
-% This is an optional feature controlled by pPar.enablePointCloud.
 
-    pc = buildEmptyPointCloudStruct();
+    % Não alocamos struct completo aqui; só em caso de erro ou no parse.
+    pc = struct();
 
+    % ---------------------------------------------------------------------
+    % Sanity checks
+    % ---------------------------------------------------------------------
     if ~safeFlag(zed.pFlag, "Connected")
         zed.pFlag.LastError = "Not connected. Call rConnect() first.";
+        zed.pFlag.HasPointCloud = false;
+        pc = buildEmptyPointCloudStruct();
         return;
     end
 
     if ~isfield(zed.pCom, "subPointCloud") || isempty(zed.pCom.subPointCloud)
         zed.pFlag.LastError = ...
-            "PointCloud subscriber not initialized. Enable point cloud (pPar.enablePointCloud=true or constructor) before rConnect().";
+            "PointCloud subscriber not initialized. Enable point cloud (enablePointCloud=true) before rConnect().";
+        zed.pFlag.HasPointCloud = false;
+        pc = buildEmptyPointCloudStruct();
         return;
     end
 
-    msg = [];
-    hasNewMsg = false;
+    % ---------------------------------------------------------------------
+    % Try to receive a fresh message (with cached fallback)
+    % ---------------------------------------------------------------------
+    [msg, ok, lastErr] = receiveWithCache( ...
+        zed.pCom.subPointCloud, ...
+        getFieldOrEmpty(zed.pCom, "lastMsgPointCloud"), ...
+        zed.pPar.timeoutSec, ...
+        "PointCloud");
 
-    % ---------------------------------------------------------------------
-    % Always try to receive a fresh message
-    % ---------------------------------------------------------------------
-    try
-        msg = receive(zed.pCom.subPointCloud, zed.pPar.timeoutSec);
-        zed.pCom.lastMsgPointCloud = msg;
-        hasNewMsg = true;
-    catch excp
-        % Fallback: use last valid message if available
-        if isfield(zed.pCom, "lastMsgPointCloud") && ~isempty(zed.pCom.lastMsgPointCloud)
-            msg = zed.pCom.lastMsgPointCloud;
-        else
-            zed.pFlag.LastError = "PointCloud receive failed: " + excp.message;
-            zed.pFlag.HasPointCloud = false;
-            return;
-        end
+    if ~ok
+        zed.pFlag.LastError = lastErr;
+        zed.pFlag.HasPointCloud = false;
+        pc = buildEmptyPointCloudStruct();
+        return;
     end
+
+    zed.pCom.lastMsgPointCloud = msg;
 
     % ---------------------------------------------------------------------
     % Parse PointCloud2 message
     % ---------------------------------------------------------------------
     try
         pc = parsePointCloudMessage(msg);
-
-        % Cache decoded snapshot
         zed.pData.PointCloud = pc;
         zed.pFlag.HasPointCloud = true;
-
-        if hasNewMsg
-            zed.pFlag.LastError = "";
-        end
-
+        zed.pFlag.LastError = "";
     catch excp
         zed.pFlag.LastError = "PointCloud parse failed: " + excp.message;
         zed.pFlag.HasPointCloud = false;
@@ -86,20 +83,68 @@ function flag = safeFlag(flags, fieldName)
     end
 end
 
-function pc = parsePointCloudMessage(msg)
-    pc = buildEmptyPointCloudStruct();
-    pc.Timestamp = datetime('now');
+function value = getFieldOrEmpty(s, fieldName)
+%getFieldOrEmpty Retrieve struct field or [] if not present.
+    if isstruct(s) && isfield(s, fieldName)
+        value = s.(fieldName);
+    else
+        value = [];
+    end
+end
 
-    % Frame ID (se disponível)
-    if isfield(msg, "header") && isfield(msg.header, "frame_id")
-        pc.FrameId = string(msg.header.frame_id);
+function [msgOut, ok, errMsg] = receiveWithCache(sub, lastMsg, timeoutSec, label)
+%receiveWithCache Try to receive a fresh ROS2 message with cached fallback.
+%
+%   [msgOut, ok, errMsg] = receiveWithCache(sub, lastMsg, timeoutSec, label)
+%
+%   ok      : true if either a new message or a cached one is returned
+%   errMsg  : non-empty only when no message is available
+
+    msgOut = [];
+    ok = false;
+    errMsg = "";
+
+    try
+        msgOut = receive(sub, timeoutSec);
+        ok = true;
+        return;
+    catch excp
+        if ~isempty(lastMsg)
+            msgOut = lastMsg;
+            ok = true;
+            errMsg = "";
+        else
+            errMsg = label + " receive failed: " + excp.message;
+        end
+    end
+end
+
+function pc = parsePointCloudMessage(msg)
+%parsePointCloudMessage Decode sensor_msgs/PointCloud2 into a stable struct.
+
+    % Timestamp / frame
+    ts = datetime('now');
+    frameId = "";
+
+    if isfield(msg, "header")
+        if isfield(msg.header, "frame_id")
+            frameId = string(msg.header.frame_id);
+        end
+        % Se quiser no futuro, pode converter header.stamp para tempo real.
     end
 
-    % XYZ em metros
-    xyz = rosReadXYZ(msg);       % Robotics System Toolbox
-    pc.XYZ = xyz;
+    % XYZ in meters (custo dominante aqui)
+    xyz = rosReadXYZ(msg);
 
-    % Opcional: cor (se você quiser habilitar depois com rosReadRGB)
-    pc.HasColor = false;
-    pc.Color = zeros(0, 3, 'uint8');
+    % Cor (desativada por enquanto; mantém API preparada)
+    hasColor = false;
+    color = zeros(0, 3, 'uint8');
+
+    pc = struct( ...
+        "Timestamp", ts, ...
+        "FrameId", frameId, ...
+        "XYZ", xyz, ...
+        "HasColor", hasColor, ...
+        "Color", color ...
+    );
 end
