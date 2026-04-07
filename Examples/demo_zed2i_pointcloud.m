@@ -2,7 +2,7 @@
 % PointCloud2 real-time preview (10 s) using ZED2i.
 %
 % Dois modos de aquisição:
-%   1) Explícito: zed.getPointCloud()
+%   1) Explícito: zed.rosGetPointCloud()
 %   2) Alto nível: zed.getSensorData() + autoFetchPointCloud = true
 %
 % Durante t_max segundos, o script:
@@ -31,7 +31,7 @@ end
 
 %% Escolha do modo de aquisição
 fprintf("Selecione o modo de aquisição de PointCloud:\n");
-fprintf("  1 - Explícito (getPointCloud)\n");
+fprintf("  1 - Explícito (rosGetPointCloud)\n");
 fprintf("  2 - Alto nível (getSensorData + autoFetchPointCloud)\n");
 
 modo = input("Escolha [1/2]: ");
@@ -46,7 +46,7 @@ useHighLevel = (modo == 2);
 if useHighLevel
     fprintf("\n[MODO 2] Usando getSensorData() com autoFetchPointCloud = true.\n\n");
 else
-    fprintf("\n[MODO 1] Usando getPointCloud() explícito.\n\n");
+    fprintf("\n[MODO 1] Usando rosGetPointCloud() explícito.\n\n");
 end
 
 %% Criação do objeto ZED2i
@@ -64,8 +64,8 @@ else
     );
 end
 
-cleanupObj = onCleanup(@() zed.lcDisconnect());
-zed.lcConnect();
+cleanupObj = onCleanup(@() zed.rosDisconnect());
+zed.rosConnect();
 
 %% Parâmetros da preview
 t_max           = 10;   % duração total [s]
@@ -103,15 +103,15 @@ while toc(t0) < t_max
             fprintf("Aguardando PointCloud via getSensorData()...\n");
         end
     else
-        pcLocal = zed.getPointCloud();
+        pcLocal = zed.rosGetPointCloud();
 
         if zed.pFlag.HasPointCloud && isfield(pcLocal, "XYZ") ...
                 && ~isempty(pcLocal.XYZ)
             pc = pcLocal;
-            fprintf("Primeira PointCloud obtida via getPointCloud().\n");
+            fprintf("Primeira PointCloud obtida via rosGetPointCloud().\n");
             break;
         else
-            fprintf("Aguardando PointCloud via getPointCloud()...\n");
+            fprintf("Aguardando PointCloud via rosGetPointCloud()...\n");
         end
     end
 end
@@ -140,7 +140,7 @@ xlabel('X (m)');
 ylabel('Y (m)');
 zlabel('Z (m)');
 title(sprintf('ZED2i Registered PointCloud (%s)', ...
-    ternary(useHighLevel, "getSensorData", "getPointCloud")));
+    ternary(useHighLevel, "getSensorData", "rosGetPointCloud")));
 axis equal;
 
 % ----- Escalas FIXAS (cubo 4x4x4) -----
@@ -187,7 +187,7 @@ while ishandle(hFig) && toc(t_startVis) < t_max
         pcFrame = data.PointCloud;
 
     else
-        pcFrameLocal = zed.getPointCloud();
+        pcFrameLocal = zed.rosGetPointCloud();
 
         if ~(zed.pFlag.HasPointCloud && isfield(pcFrameLocal, "XYZ") ...
                 && ~isempty(pcFrameLocal.XYZ))
@@ -219,7 +219,7 @@ while ishandle(hFig) && toc(t_startVis) < t_max
     end
 
     titleStr = sprintf('ZED2i PointCloud (%s) | t = %.1f s | pts = %d', ...
-        ternary(useHighLevel, "getSensorData", "getPointCloud"), ...
+        ternary(useHighLevel, "getSensorData", "rosGetPointCloud"), ...
         toc(t_startVis), nFramePoints);
     title(titleStr);
 
@@ -228,7 +228,7 @@ end
 
 fprintf("Visualização em tempo real encerrada.\n");
 
-% lcDisconnect será chamado automaticamente por cleanupObj
+% rosDisconnect será chamado automaticamente por cleanupObj
 
 %% Pequeno helper tipo operador ternário
 function out = ternary(cond, valTrue, valFalse)

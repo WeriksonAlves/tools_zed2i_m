@@ -33,8 +33,8 @@ zed = ZED2i( ...
     "enablePose", true ...
 );
 
-cleanupObj = onCleanup(@() zed.lcDisconnect());
-zed.lcConnect();
+cleanupObj = onCleanup(@() zed.rosDisconnect());
+zed.rosConnect();
 
 %% Buffers para logs de estado
 traj          = zeros(0, 3);  % trajetória (XYZ) da pose

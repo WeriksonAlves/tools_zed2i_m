@@ -1,81 +1,28 @@
 % demo_zed2i_calibration.m
-% Fetch and display ZED2i camera calibration and MATLAB intrinsics from ROS2.
+clearvars; close all; clc;
 
-clearvars;
-close all;
-clc;
+zed = ZED2i(0, "Profile", "calibration");
+cleanupObj = onCleanup(@() safeDisconnect(zed)); %#ok<NASGU>
 
-%% Add project to path (root-based)
-PastaAtual = pwd;
-PastaRaiz  = 'tools_zed2i_m';
+zed.rosConnect();
 
-idx = strfind(PastaAtual, PastaRaiz);
-if ~isempty(idx)
-    rootPath = PastaAtual(1:(idx(1) + numel(PastaRaiz) - 1));
-    cd(rootPath);
-    addpath(genpath(pwd));
-    cd(PastaAtual);
-else
-    % Caso a pasta raiz não seja encontrada, ainda assim segue com o path atual
-    addpath(genpath(PastaAtual));
-end
+% In your new model, getSensorData is the commit point
+zed.getSensorData();
 
-%% Create sensor object and guarantee proper cleanup
-zed = ZED2i();
-cleanupObj = onCleanup(@() zed.lcDisconnect());
-
-zed.lcConnect();
-
-%% Fetch calibration (CameraInfo + intrinsics)
-disp('--- ZED2i Calibration ---');
-
-calib = struct();
-intr  = [];
-
-try
-    % Nova assinatura: [calib, intr] = getCalibration(zed)
-    [calib, intr] = zed.getCalibration();
-catch excp
-    disp('Failed to retrieve calibration from ROS2 CameraInfo.');
-    if isfield(zed.pFlag, "LastError") && ~isempty(zed.pFlag.LastError)
-        disp(['LastError: ' char(zed.pFlag.LastError)]);
-    end
-    disp(['Reason: ' excp.message]);
+if ~isfield(zed.pFlag, "HasCalibration") || ~zed.pFlag.HasCalibration
+    disp("Calibration not available.");
+    disp("LastError: " + string(zed.pFlag.LastError));
     return;
 end
 
-%% Validate calibration
-if isempty(calib) || ...
-   ~isfield(calib, "K")      || isempty(calib.K)      || ...
-   ~isfield(calib, "Width")  || isempty(calib.Width)  || ...
-   ~isfield(calib, "Height") || isempty(calib.Height)
+calib = zed.pData.Calibration;
+disp(calib);
 
-    disp('Calibration not available or incomplete.');
-    if isfield(zed.pFlag, "LastError") && ~isempty(zed.pFlag.LastError)
-        disp(['LastError: ' char(zed.pFlag.LastError)]);
-    end
-    return;
+if isfield(zed.pData, "Intrinsics") && ~isempty(zed.pData.Intrinsics)
+    disp("--- cameraIntrinsics ---");
+    disp(zed.pData.Intrinsics);
 end
 
-%% Print calibration data
-disp(['Model: ' char(calib.DistortionModel)]);
-disp(['Size : ' num2str(calib.Width) ' x ' num2str(calib.Height)]);
-
-disp('K =');
-disp(calib.K);
-
-disp('D =');
-if ~isfield(calib, "D") || isempty(calib.D)
-    disp([]);
-else
-    disp(calib.D(:).');
-end
-
-%% Print MATLAB camera intrinsics (if available)
-disp('--- MATLAB cameraIntrinsics ---');
-
-if isempty(intr)
-    disp('cameraIntrinsics not available (e.g., missing Computer Vision Toolbox).');
-else
-    disp(intr);
+function safeDisconnect(zed)
+    try, zed.rosDisconnect(); catch, end
 end

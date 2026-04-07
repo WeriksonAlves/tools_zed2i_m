@@ -1,167 +1,199 @@
 classdef ZED2i < handle
-    %ZED2i Minimal ROS2 wrapper for ZED2i (MATLAB R2025a).
-    %
-    % Minimal API (lab-style):
-    %   - lcConnect()
-    %   - getImage()
-    %   - getDepth()
-    %   - getCalibration()
-    %   - getSensorData()
-    %   - getImu()            % opcional, se enableImu = true
-    %   - getPose()           % opcional, se enablePose = true
-    %   - getPointCloud()     % opcional, se enablePointCloud = true
-    %   - lcDisconnect()
-    %
-    % Internal organization:
-    %   pPar  : parameters
-    %   pFlag : flags / health
-    %   pData : decoded buffers + metrics
-    %   pCom  : ROS2 handles + last messages
+    %ZED2i ZED2i MATLAB wrapper (ROS2) with scheduled acquisition.
 
     properties
-        pID
-        pPar
-        pFlag
+        pPar 
+        pCom 
         pData
-        pCom
+        pFlag
+        pPos 
+        pCAD 
     end
 
     methods
-        function obj = ZED2i(id, varargin)
-            %ZED2i Constructor.
-            %
-            % Usage examples:
-            %   zed = ZED2i();
-            %   zed = ZED2i(1);
-            %   zed = ZED2i("timeoutSec", 1.0, "fpsAlpha", 0.1);
-            %   zed = ZED2i(1, "nodeName", "custom_node");
-            %   zed = ZED2i("enableImu", true, "enablePose", true);
-            %
-            % ID é mantido por convenção de laboratório, mas não é usado
-            % diretamente na integração ROS2.
+        function obj = ZED2i(camId, varargin)
+        %ZED2i ZED2i ROS2 MATLAB wrapper (stateful).
+        %
+        % Usage:
+        %   zed = ZED2i(0);
+        %   zed = ZED2i(0, "Profile", "calibration");
+        %
+        % The constructor MUST initialize:
+        %   - pPar (parameters)
+        %   - pCom, pData, pFlag, pPos (state)
+        %
+        % All configuration should be driven by the class, not demos.
 
-            % -------------------- Handle optional ID --------------------
-            if nargin == 0
-                obj.pID = 0;
-                nameValueArgs = {};
-            elseif nargin >= 1 && ~ischar(id) && ~isstring(id)
-                % Primeiro argumento é tratado como ID numérico
-                obj.pID = id;
-                nameValueArgs = varargin;
-            else
-                % Sem ID numérico; todos argumentos vão para Name-Value
-                obj.pID = 0;
-                nameValueArgs = [{id}, varargin];
+            if nargin < 1 || isempty(camId)
+                camId = 0;
             end
 
-            % -------------------- Structs internos --------------------
-            obj.pPar  = struct();
-            obj.pFlag = struct();
-            obj.pData = struct();
-            obj.pCom  = struct();
+            p = inputParser;
+            addParameter(p, "Profile", "default", @(x) isstring(x) || ischar(x));
+            parse(p, varargin{:});
+            profile = string(p.Results.Profile);
 
-            % -------------------- Configuração padrão --------------------
-            obj.cfgParameters();
-            obj.cfgState();
+            % ---------- Always create parameters first ----------
+            obj.iParameters(camId);
 
-            % -------------------- Overrides via Name-Value ----------------
-            if ~isempty(nameValueArgs)
-                applyNameValueOverrides(obj, nameValueArgs{:});
+            % ---------- Then create state containers ----------
+            obj.iState();
+            obj.iControlVariables();
+
+            % ---------- Apply profile AFTER params+state exist ----------
+            obj.configure(profile);
+        end
+
+        function configure(obj, profile)
+            %configure Apply a predefined configuration profile.
+            %
+            % This keeps demos generic: they just call configure("calibration") etc.
+
+            profile = string(profile);
+
+            switch lower(profile)
+                case "live"
+                    obj.setStreamHz("image", 15);
+                    obj.setStreamHz("depth", 15);
+                    obj.setStreamHz("imu",   100);
+                    obj.setStreamHz("pose",  15);
+                    obj.setStreamHz("pcd",   1);
+                    obj.setStreamHz("calib", 0);  % on-demand
+
+                    obj.setEnabled("enableImu", true);
+                    obj.setEnabled("enablePose", true);
+                    obj.setEnabled("enablePointCloud", true);
+
+                case "calibration"
+                    % Minimal load + guarantee CameraInfo available immediately
+                    obj.setStreamHz("image", 0);
+                    obj.setStreamHz("depth", 0);
+                    obj.setStreamHz("imu",   0);
+                    obj.setStreamHz("pose",  0);
+                    obj.setStreamHz("pcd",   0);
+                    obj.setStreamHz("calib", Inf);  % always fetch/keep
+
+                    obj.setEnabled("enableImu", false);
+                    obj.setEnabled("enablePose", false);
+                    obj.setEnabled("enablePointCloud", false);
+
+                case "minimal"
+                    obj.setStreamHz("image", 15);
+                    obj.setStreamHz("depth", 15);
+                    obj.setStreamHz("imu",   0);
+                    obj.setStreamHz("pose",  0);
+                    obj.setStreamHz("pcd",   0);
+                    obj.setStreamHz("calib", 0);
+
+                    obj.setEnabled("enableImu", false);
+                    obj.setEnabled("enablePose", false);
+                    obj.setEnabled("enablePointCloud", false);
+
+                otherwise
+                    error("ZED2i:configure:InvalidProfile", ...
+                        "Unknown profile '%s'.", profile);
             end
         end
-    end
-end
 
-% -------------------------------------------------------------------------
-% Local helper (constructor scope)
-% -------------------------------------------------------------------------
-function applyNameValueOverrides(obj, varargin)
-%applyNameValueOverrides Override selected pPar fields using Name-Value pairs.
-%
-% Only recognized fields are applied; others trigger an error to catch
-% typos early.
+        function setStreamHz(obj, streamName, hz)
+            streamName = string(streamName);
 
-    if mod(numel(varargin), 2) ~= 0
-        error("ZED2i:Constructor:InvalidNameValue", ...
-            "Name-Value arguments must come in pairs.");
-    end
+            validateattributes(streamName, {'string','char'}, {'scalartext'});
+            validateattributes(hz, {'double','single'}, {'scalar','real','nonnegative'});
 
-    % Lista de parâmetros suportados (mantida em sincronia com cfgParameters)
-    validNames = [ ...
-        "timeoutSec", ...
-        "fpsAlpha", ...
-        "nodeName", ...
-        "topicImage", ...
-        "topicDepth", ...
-        "topicCameraInfo", ...
-        "enableImu", ...
-        "topicImu", ...
-        "enablePose", ...
-        "topicPose", ...
-        "topicOdom", ...
-        "enablePointCloud", ...
-        "topicPointCloud", ...
-        "autoFetchPointCloud" ...
-    ];
+            if ~isfield(obj.pPar, "streamHz") || ~isstruct(obj.pPar.streamHz)
+                obj.pPar.streamHz = struct();
+            end
 
-    for k = 1:2:numel(varargin)
-        name  = varargin{k};
-        value = varargin{k+1};
-
-        if ~(ischar(name) || isstring(name))
-            error("ZED2i:Constructor:InvalidName", ...
-                "Name in Name-Value pair must be char or string.");
+            obj.pPar.streamHz.(char(streamName)) = double(hz);
         end
 
-        nameStr = string(name);
 
-        if ~any(nameStr == validNames)
-            error("ZED2i:Constructor:UnknownParameter", ...
-                "Unknown parameter name '%s'.", nameStr);
+
+        function setParameters(obj, overrides)
+            %setParameters Safe parameter merge without exposing internals to demos.
+
+            if ~isstruct(overrides) || ~isscalar(overrides)
+                error("ZED2i:setParameters:InvalidInput", ...
+                    "Overrides must be a scalar struct.");
+            end
+
+            f = fieldnames(overrides);
+            for k = 1:numel(f)
+                key = f{k};
+                obj.pPar.(key) = overrides.(key); %#ok<AGROW>
+            end
+
+            % Ensure required fields exist even after overrides
+            obj.ensureCoreDefaults_();
         end
 
-        switch nameStr
-            case "timeoutSec"
-                obj.pPar.timeoutSec = double(value);
+        function setEnabled(obj, fieldName, value)
+            %setEnabled Configure enable flags in pPar (boolean).
 
-            case "fpsAlpha"
-                obj.pPar.fpsAlpha = double(value);
+            fieldName = string(fieldName);
+            value = logical(value);
 
-            case "nodeName"
-                obj.pPar.nodeName = string(value);
+            obj.pPar.(char(fieldName)) = value;
+        end
 
-            case "topicImage"
-                obj.pPar.topicImage = string(value);
+        function tf = isStreamEnabled(obj, streamName)
+            %isStreamEnabled True if streamHz is Inf or > 0.
+            streamName = char(string(streamName));
+            obj.ensureStreamHzStruct_();
+            if ~isfield(obj.pPar.streamHz, streamName)
+                tf = false;
+                return;
+            end
+            hz = double(obj.pPar.streamHz.(streamName));
+            tf = isinf(hz) || (hz > 0);
+        end
+    end
 
-            case "topicDepth"
-                obj.pPar.topicDepth = string(value);
+    methods (Access = private)
+        function ensureStreamHzStruct_(obj)
+            if ~isfield(obj, "pPar") || ~isstruct(obj.pPar)
+                obj.pPar = struct();
+            end
+            if ~isfield(obj.pPar, "streamHz") || ~isstruct(obj.pPar.streamHz)
+                obj.pPar.streamHz = struct();
+            end
 
-            case "topicCameraInfo"
-                obj.pPar.topicCameraInfo = string(value);
+            % Ensure known keys exist (stable contract)
+            defaults = struct( ...
+                "image", 15, ...
+                "depth", 15, ...
+                "imu",   100, ...
+                "pose",  15, ...
+                "pcd",   1, ...
+                "calib", 0 ...
+            );
 
-            case "enableImu"
-                obj.pPar.enableImu = logical(value);
+            dkeys = fieldnames(defaults);
+            for i = 1:numel(dkeys)
+                k = dkeys{i};
+                if ~isfield(obj.pPar.streamHz, k)
+                    obj.pPar.streamHz.(k) = defaults.(k);
+                end
+            end
+        end
 
-            case "topicImu"
-                obj.pPar.topicImu = string(value);
+        function ensureCoreDefaults_(obj)
+            % Make sure essential params exist (defensive).
 
-            case "enablePose"
-                obj.pPar.enablePose = logical(value);
+            if ~isfield(obj.pPar, "timeoutSec") || isempty(obj.pPar.timeoutSec)
+                obj.pPar.timeoutSec = 1.0;
+            end
+            if ~isfield(obj.pPar, "fpsAlpha") || isempty(obj.pPar.fpsAlpha)
+                obj.pPar.fpsAlpha = 0.2;
+            end
 
-            case "topicPose"
-                obj.pPar.topicPose = string(value);
+            % enable flags defaults
+            if ~isfield(obj.pPar, "enableImu"),        obj.pPar.enableImu = true; end
+            if ~isfield(obj.pPar, "enablePose"),       obj.pPar.enablePose = true; end
+            if ~isfield(obj.pPar, "enablePointCloud"), obj.pPar.enablePointCloud = true; end
 
-            case "topicOdom"
-                obj.pPar.topicOdom = string(value);
-
-            case "enablePointCloud"
-                obj.pPar.enablePointCloud = logical(value);
-
-            case "topicPointCloud"
-                obj.pPar.topicPointCloud = string(value);
-
-            case "autoFetchPointCloud"              % NEW
-                obj.pPar.autoFetchPointCloud = logical(value);
+            obj.ensureStreamHzStruct_();
         end
     end
 end
