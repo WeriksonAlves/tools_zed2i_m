@@ -2,9 +2,9 @@ function tf = sShouldFetch(zed, streamName)
 %sShouldFetch Decide if a stream should be fetched now based on streamHz.
 %
 % Rules:
-%   - Hz <= 0  -> disabled (never fetch)
-%   - Hz = inf -> always fetch
-%   - Otherwise, fetch if elapsed >= 1/Hz
+%   - If streamHz is <= 0, never fetch.
+%   - If streamHz is Inf, always fetch.
+%   - Otherwise, fetch if elapsed time since last fetch >= 1/streamHz.
 %
 % Scheduler state is stored in:
 %   zed.pData.Scheduler.lastTic.(streamName) = tic handle
@@ -15,12 +15,12 @@ function tf = sShouldFetch(zed, streamName)
         tf = false;
         return;
     end
+
     if isinf(hz)
         tf = true;
         return;
     end
 
-    % init storage
     if ~isfield(zed.pData, "Scheduler") || ~isstruct(zed.pData.Scheduler)
         zed.pData.Scheduler = struct();
     end
@@ -28,10 +28,10 @@ function tf = sShouldFetch(zed, streamName)
         zed.pData.Scheduler.lastTic = struct();
     end
 
-    field = string(streamName);
+    field = char(string(streamName));
 
     if ~isfield(zed.pData.Scheduler.lastTic, field) || isempty(zed.pData.Scheduler.lastTic.(field))
-        tf = true; % first time
+        tf = true;
         return;
     end
 

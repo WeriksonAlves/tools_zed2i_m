@@ -47,7 +47,7 @@ end
 
 function pose = parseOdomMessage(msg)
     pose = struct( ...
-        "Timestamp", datetime('now'), ...
+        "TimestampSec", 0.0, ...
         "FrameId", "", ...
         "ChildFrameId", "", ...
         "Position", [NaN NaN NaN], ...
@@ -61,6 +61,7 @@ function pose = parseOdomMessage(msg)
     if isfield(msg, "header") && isfield(msg.header, "frame_id")
         pose.FrameId = string(msg.header.frame_id);
     end
+
     if isfield(msg, "child_frame_id")
         pose.ChildFrameId = string(msg.child_frame_id);
     end
@@ -73,9 +74,17 @@ function pose = parseOdomMessage(msg)
     qwxyz = [double(q.w), double(q.x), double(q.y), double(q.z)];
     pose.OrientationEuler = utilQuatToEulerRad(qwxyz);
 
+    % Twist
+    v = msg.twist.twist.linear;
+    w = msg.twist.twist.angular;
+
+    pose.LinearVelocity = [double(v.x), double(v.y), double(v.z)];
+    pose.AngularVelocity = [double(w.x), double(w.y), double(w.z)];
+
     if isfield(msg.pose, "covariance")
         pose.PoseCovariance = reshape(double(msg.pose.covariance), [6, 6])';
     end
+
     if isfield(msg.twist, "covariance")
         pose.TwistCovariance = reshape(double(msg.twist.covariance), [6, 6])';
     end

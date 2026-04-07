@@ -97,6 +97,7 @@ function data = getSensorData(zed)
         [imu, ok, err] = zed.rosGetImu("Mode", mode);
         if ok
             zed.pData.Imu = imu;
+            zed.pData.Imu.TimestampSec = data.TimestampSec;
             zed.pFlag.HasImu = true;
         else
             if strlength(err) > 0
@@ -113,6 +114,7 @@ function data = getSensorData(zed)
         [pose, ok, err] = zed.rosGetPose("Mode", mode);
         if ok
             zed.pData.Pose = pose;
+            zed.pData.Pose.TimestampSec = data.TimestampSec;
             zed.pFlag.HasPose = true;
 
             % Commit to pPos convention (if available)
@@ -138,6 +140,7 @@ function data = getSensorData(zed)
         [pc, ok, err] = zed.rosGetPointCloud("Mode", mode);
         if ok
             zed.pData.PointCloud = pc;
+            zed.pData.PointCloud.TimestampSec = data.TimestampSec;
             zed.pFlag.HasPointCloud = true;
         else
             if strlength(err) > 0

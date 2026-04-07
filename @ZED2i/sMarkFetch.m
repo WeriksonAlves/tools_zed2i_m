@@ -10,6 +10,6 @@ function sMarkFetch(zed, streamName)
         zed.pData.Scheduler.lastTic = struct();
     end
 
-    field = string(streamName);
+    field = char(string(streamName));
     zed.pData.Scheduler.lastTic.(field) = tic;
 end
