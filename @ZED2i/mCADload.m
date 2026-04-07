@@ -107,7 +107,11 @@ end
 % Local helpers
 % -------------------------------------------------------------------------
 function cad = applyCadDefaults_(zed)
-    if ~isfield(zed, "pPar") || ~isfield(zed.pPar, "cad") || isempty(zed.pPar.cad)
+    if isempty(zed.pPar) || ~isstruct(zed.pPar)
+        zed.pPar = struct();
+    end
+
+    if ~isfield(zed.pPar, "cad") || isempty(zed.pPar.cad) || ~isstruct(zed.pPar.cad)
         zed.pPar.cad = struct();
     end
 

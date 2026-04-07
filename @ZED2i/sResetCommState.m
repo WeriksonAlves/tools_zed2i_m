@@ -2,7 +2,7 @@ function sResetCommState(zed)
 %sResetCommState Reset ROS2 handles and last received messages (idempotent).
 
     % Ensure pCom exists
-    if ~isfield(zed, "pCom") || isempty(zed.pCom)
+    if isempty(zed.pCom) || ~isstruct(zed.pCom)
         zed.pCom = struct();
     end
 

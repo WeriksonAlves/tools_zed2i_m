@@ -5,7 +5,7 @@ function hz = sGetStreamHz(zed, streamName)
 
     hz = 0;
 
-    if ~isfield(zed, "pPar") || ~isstruct(zed.pPar)
+    if isempty(zed.pPar) || ~isstruct(zed.pPar)
         return;
     end
     if ~isfield(zed.pPar, "streamHz") || ~isstruct(zed.pPar.streamHz)

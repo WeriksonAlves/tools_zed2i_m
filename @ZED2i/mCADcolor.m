@@ -7,8 +7,9 @@ function mCADcolor(zed, rgb)
         return;
     end
 
-    if ~isfield(zed, "pCAD") || ~isfield(zed.pCAD, "i3D")
-        error("ZED2i:CAD:NotCreated", "CAD patches not created. Call mCADplot(zed) at least once.");
+    if isempty(zed.pCAD) || ~isstruct(zed.pCAD) || ~isfield(zed.pCAD, "i3D")
+        error("ZED2i:CAD:NotCreated", ...
+            "CAD patches not created. Call mCADplot(zed) at least once.");
     end
 
     c = double(rgb(:)');

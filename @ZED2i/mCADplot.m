@@ -41,7 +41,7 @@ end
 % Helpers
 % =========================================================================
 function ensureCadLoaded_(zed)
-    if ~isfield(zed, "pCAD") || isempty(zed.pCAD)
+    if isempty(zed.pCAD) || ~isstruct(zed.pCAD)
         zed.pCAD = struct();
     end
 

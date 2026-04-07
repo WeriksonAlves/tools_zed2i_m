@@ -1,7 +1,7 @@
 function mCADdel(zed)
 % mCADdel Delete CAD patches for the ZED2i model.
 
-    if ~isfield(zed, "pCAD") || isempty(zed.pCAD)
+    if isempty(zed.pCAD) || ~isstruct(zed.pCAD)
         return;
     end
 
