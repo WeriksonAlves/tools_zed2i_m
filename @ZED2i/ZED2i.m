@@ -29,7 +29,7 @@ classdef ZED2i < handle
             end
 
             p = inputParser;
-            addParameter(p, "Profile", "default", @(x) isstring(x) || ischar(x));
+            addParameter(p, "Profile", "live", @(x) isstring(x) || ischar(x));
             parse(p, varargin{:});
             profile = string(p.Results.Profile);
 
@@ -52,26 +52,25 @@ classdef ZED2i < handle
             profile = string(profile);
 
             switch lower(profile)
-                case "live"
-                    obj.setStreamHz("image", 15);
-                    obj.setStreamHz("depth", 15);
-                    obj.setStreamHz("imu",   100);
-                    obj.setStreamHz("pose",  15);
+                case {"live", "default"}
+                    obj.setStreamHz("image", 30);
+                    obj.setStreamHz("depth", 30);
+                    obj.setStreamHz("imu",   120);
+                    obj.setStreamHz("pose",  10);
                     obj.setStreamHz("pcd",   1);
-                    obj.setStreamHz("calib", 0);  % on-demand
+                    obj.setStreamHz("calib", 0);
 
                     obj.setEnabled("enableImu", true);
                     obj.setEnabled("enablePose", true);
-                    obj.setEnabled("enablePointCloud", true);
+                    obj.setEnabled("enablePointCloud", false);
 
                 case "calibration"
-                    % Minimal load + guarantee CameraInfo available immediately
                     obj.setStreamHz("image", 0);
                     obj.setStreamHz("depth", 0);
                     obj.setStreamHz("imu",   0);
                     obj.setStreamHz("pose",  0);
                     obj.setStreamHz("pcd",   0);
-                    obj.setStreamHz("calib", Inf);  % always fetch/keep
+                    obj.setStreamHz("calib", Inf);
 
                     obj.setEnabled("enableImu", false);
                     obj.setEnabled("enablePose", false);
@@ -91,7 +90,8 @@ classdef ZED2i < handle
 
                 otherwise
                     error("ZED2i:configure:InvalidProfile", ...
-                        "Unknown profile '%s'.", profile);
+                        "Unknown profile '%s'. Use: live, calibration, or minimal.", ...
+                        char(profile));
             end
         end
 
