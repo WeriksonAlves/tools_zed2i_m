@@ -1,27 +1,25 @@
 % demo_zed2i_rgbd.m
-% RGB + Depth preview using ZED2i MATLAB ROS2 wrapper.
-
-clearvars;
-close all;
-clc;
+% Simple demonstration of retrieving RGB-D data from the ZED2i using the "calibration" profile.
+% This profile minimizes bandwidth by disabling all streams except calibration.
+% Note that calibration data is typically static, so streaming at high rates is unnecessary.
 
 %% Add project to path (root-based)
-PastaAtual = pwd;
-PastaRaiz  = 'tools_zed2i_m';
+clearvars; close all; clc;
+current_path = pwd;
+root  = 'tools_zed2i_m';
 
-idx = strfind(PastaAtual, PastaRaiz);
+idx = strfind(current_path, root);
 if ~isempty(idx)
-    rootPath = PastaAtual(1:(idx(1) + numel(PastaRaiz) - 1));
+    rootPath = current_path(1:(idx(1) + numel(root) - 1));
     cd(rootPath);
     addpath(genpath(pwd));
-    cd(PastaAtual);
+    cd(current_path);
 else
-    % Se não encontrar a pasta raiz, ainda assim adiciona o path atual
-    addpath(genpath(PastaAtual));
+    addpath(genpath(current_path));
 end
 
 %% Create ZED2i object and guarantee proper cleanup
-zed = ZED2i(0);
+zed = ZED2i(0, "Profile", "minimal");
 cleanupObj = onCleanup(@() zed.rosDisconnect());
 
 zed.rosConnect();
@@ -87,7 +85,8 @@ while ishandle(hFig) && toc(t) < t_max
                 data.Metrics.ImageFps, data.Metrics.ImageDrops));
         else
             % Opcional: exibir informação de ausência de imagem
-            title(ax1, 'RGB (no data)');
+            title(ax1, sprintf('RGB | FPS: %.1f | Drops: %d', ...
+                data.LastError));
         end
 
         if mod(frameCount, 30) == 0
@@ -119,7 +118,8 @@ while ishandle(hFig) && toc(t) < t_max
             title(ax2, sprintf('Depth | Range: [%.2f, %.2f] m | FPS: %.1f', ...
                 lo, hi, data.Metrics.DepthFps));
         else
-            title(ax2, 'Depth (no data)');
+            title(ax2, sprintf('Depth | FPS: %.1f | Drops: %d', ...
+                data.LastError));
         end
 
         if mod(frameCount, 30) == 0

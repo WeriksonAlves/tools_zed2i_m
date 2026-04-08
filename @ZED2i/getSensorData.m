@@ -61,6 +61,7 @@ function data = getSensorData(zed)
         if ok
             zed.pData.Image = img;
             zed.pFlag.HasImage = true;
+            zed.sUpdateFps("image");
         else
             if strlength(err) > 0
                 errList(end+1) = "Image: " + err; %#ok<AGROW>
@@ -76,12 +77,9 @@ function data = getSensorData(zed)
         [depth, depthMask, ok, err] = zed.rosGetDepth("Mode", mode);
         if ok
             zed.pData.Depth = depth;
-            if isfield(zed.pData, "DepthMask")
-                zed.pData.DepthMask = depthMask;
-            else
-                zed.pData.DepthMask = depthMask;
-            end
+            zed.pData.DepthMask = depthMask;
             zed.pFlag.HasDepth = true;
+            zed.sUpdateFps("depth");
         else
             if strlength(err) > 0
                 errList(end+1) = "Depth: " + err; %#ok<AGROW>

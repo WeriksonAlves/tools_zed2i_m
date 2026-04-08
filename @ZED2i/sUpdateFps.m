@@ -4,7 +4,11 @@ function sUpdateFps(zed, stream)
 %   zed.sUpdateFps("image");
 %   zed.sUpdateFps("depth");
 
-    alpha = zed.pPar.fpsAlpha;
+    alpha = 0.1;
+    if isstruct(zed.pPar) && isfield(zed.pPar, "fpsAlpha") && ~isempty(zed.pPar.fpsAlpha)
+        alpha = double(zed.pPar.fpsAlpha);
+    end
+    alpha = min(max(alpha, 0), 1);
 
     switch string(stream)
         case "image"

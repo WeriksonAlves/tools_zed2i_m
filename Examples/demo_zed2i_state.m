@@ -1,37 +1,32 @@
 % demo_zed2i_state.m
-% IMU + Pose/Odom demo using ZED2i.getSensorData (high-level API).
-%
-% - Habilita IMU e Pose via construtor (enableImu / enablePose)
-% - Usa getSensorData para obter:
-%     * Imu (AngularVelocity, LinearAcceleration, etc.)
-%     * Pose (Position, OrientationQuat, etc.)
-%     * Flags, Metrics e LastError
-% - Loga no terminal e acumula trajetória e séries temporais para plot ao final.
-
-clearvars;
-close all;
-clc;
+% Demonstrates how to use getSensorData() to retrieve and log the current state
+% of all sensor streams. This is a high-level snapshot of the ZED2i's state at
+% the moment of the call, including pose, IMU, and stream metrics. % The demo
+% runs for a fixed duration, logging the state at a specified rate, and then
+% plots the collected pose and IMU data.
 
 %% Add project to path (root-based)
-PastaAtual = pwd;
-PastaRaiz  = 'tools_zed2i_m';
+clearvars; close all; clc;
+current_path = pwd;
+root  = 'tools_zed2i_m';
 
-idx = strfind(PastaAtual, PastaRaiz);
+idx = strfind(current_path, root);
 if ~isempty(idx)
-    rootPath = PastaAtual(1:(idx(1) + numel(PastaRaiz) - 1));
+    rootPath = current_path(1:(idx(1) + numel(root) - 1));
     cd(rootPath);
     addpath(genpath(pwd));
-    cd(PastaAtual);
+    cd(current_path);
 else
-    % Se não encontrar a pasta raiz, ainda assim adiciona o path atual
-    addpath(genpath(PastaAtual));
+    addpath(genpath(current_path));
 end
 
-%% Create ZED2i object with IMU and Pose enabled
-zed = ZED2i( ...
-    "enableImu",  true, ...
-    "enablePose", true ...
-);
+%% Create ZED2i object and guarantee proper cleanup
+zed = ZED2i(0, "Profile", "live");
+
+% Only demonstrate, since it is enabled by default in the "live" profile.
+% But it's good to show how to enable or disable features.
+zed.setEnabled("enableImu", true);
+zed.setEnabled("enablePose", true);
 
 cleanupObj = onCleanup(@() zed.rosDisconnect());
 zed.rosConnect();
