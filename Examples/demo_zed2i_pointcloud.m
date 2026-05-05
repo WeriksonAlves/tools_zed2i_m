@@ -88,9 +88,15 @@ switch lower(demoMode)
             zed, hFig, hScat, t_max, target_fps_cloud, maxPointsToShow);
 
     otherwise
+        safeDisconnect(zed);
+        clear cleanupObj zed;
         error("ZED2i:Demo:InvalidMode", ...
             "Invalid demoMode '%s'. Use 'static' or 'live'.", demoMode);
 end
+
+% Explicit cleanup is needed because this file is a script, not a function.
+safeDisconnect(zed);
+clear cleanupObj zed;
 
 %% ------------------------------------------------------------------------
 % Local helper functions

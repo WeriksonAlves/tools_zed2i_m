@@ -47,6 +47,15 @@ if ~isempty(data.Intrinsics)
     disp(data.Intrinsics);
 end
 
+% Explicit cleanup is needed because this file is a script, not a function.
+safeDisconnect(zed);
+clear cleanupObj zed;
+
+%% ------------------------------------------------------------------------
+% Local helper functions
+% -------------------------------------------------------------------------
+
 function safeDisconnect(zed)
     try, zed.rosDisconnect(); catch, end
 end
+

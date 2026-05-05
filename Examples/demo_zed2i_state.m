@@ -214,3 +214,14 @@ if ~isempty(linAccImu)
 else
     fprintf("No linear acceleration samples (IMU) collected.\n");
 end
+
+% Explicit cleanup is needed because this file is a script, not a function.
+safeDisconnect(zed);
+clear cleanupObj zed;
+
+%% ------------------------------------------------------------------------
+% Local helper functions
+% -------------------------------------------------------------------------
+function safeDisconnect(zed)
+    try, zed.rosDisconnect(); catch, end
+end

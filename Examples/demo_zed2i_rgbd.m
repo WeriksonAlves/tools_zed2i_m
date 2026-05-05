@@ -148,6 +148,14 @@ while ishandle(hFig) && toc(t) < t_max
     end
 end
 
+% Explicit cleanup is needed because this file is a script, not a function.
+safeDisconnect(zed);
+clear cleanupObj zed;
+
+%% ------------------------------------------------------------------------
+% Local helper functions
+% -------------------------------------------------------------------------
+
 function safeDisconnect(zed)
     try
         zed.rosDisconnect();
