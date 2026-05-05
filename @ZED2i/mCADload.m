@@ -118,9 +118,9 @@ function cad = applyCadDefaults_(zed)
     cad = zed.pPar.cad;
 
     cad = setDefault_(cad, "enable", true);
-    cad = setDefault_(cad, "scale", 1.0);
+    cad = setDefault_(cad, "scale", 0.01);
     cad = setDefault_(cad, "center", true);
-    cad = setDefault_(cad, "R_model_to_body", eye(3));
+    cad = setDefault_(cad, "R_model_to_body", defaultRModelToBody_());
     cad = setDefault_(cad, "useSingle", true);
 
     if ~isfield(cad, "modelDir") || strlength(string(cad.modelDir)) == 0
@@ -220,32 +220,19 @@ function obj = localLoadObjFast_(objPath)
                     V(:, vCount) = nums(1:3);
                 end
 
-            elseif startsWith(ln, "usemtl ")
-                mtlName = char(strtrim(ln(7:end)));
-                if ~mtlMap.isKey(mtlName)
-                    usemtlNames(end+1, 1) = string(mtlName); %#ok<AGROW>
-                    mtlMap(mtlName) = uint32(numel(usemtlNames));
-                end
-                currentMtlIdx = mtlMap(mtlName);
-
             elseif startsWith(ln, "f ")
-                % Extract first index of each vertex token using regexp:
-                % captures numbers before any '/'
-                tok = regexp(ln(2:end), "(\d+)(?=(/|\s|$))", "tokens");
-                if isempty(tok)
-                    continue;
-                end
-                idx = zeros(numel(tok), 1, "uint32");
-                for k = 1:numel(tok)
-                    idx(k) = uint32(str2double(tok{k}{1}));
-                end
+                idx = parseObjFaceVertexIndices_(ln(2:end), vCount);
 
                 if numel(idx) == 3
-                    [F3, umat3, fCount] = pushTri_(F3, umat3, fCount, idx, currentMtlIdx, fChunk);
+                    [F3, umat3, fCount] = pushTri_( ...
+                        F3, umat3, fCount, idx, currentMtlIdx, fChunk);
+
                 elseif numel(idx) > 3
+                    % Fan triangulation for polygons with more than 3 vertices.
                     for k = 2:(numel(idx) - 1)
                         tri = [idx(1); idx(k); idx(k + 1)];
-                        [F3, umat3, fCount] = pushTri_(F3, umat3, fCount, tri, currentMtlIdx, fChunk);
+                        [F3, umat3, fCount] = pushTri_( ...
+                            F3, umat3, fCount, tri, currentMtlIdx, fChunk);
                     end
                 end
             end
@@ -332,4 +319,70 @@ function mtl = localLoadMtlFast_(mtlPath)
     if isempty(mtl)
         mtl = struct("name", "default", "Kd", [0.7; 0.7; 0.7]);
     end
+end
+
+function idx = parseObjFaceVertexIndices_(faceLine, vertexCount)
+%parseObjFaceVertexIndices_ Extract only vertex indices from an OBJ face line.
+%
+% Supports:
+%   f v1 v2 v3
+%   f v1/vt1 v2/vt2 v3/vt3
+%   f v1//vn1 v2//vn2 v3//vn3
+%   f v1/vt1/vn1 v2/vt2/vn2 v3/vt3/vn3
+%
+% Also supports negative OBJ indices.
+
+    tokens = regexp(strtrim(faceLine), "\s+", "split");
+    idx = zeros(numel(tokens), 1, "uint32");
+
+    validCount = 0;
+
+    for i = 1:numel(tokens)
+        token = tokens{i};
+
+        if isempty(token)
+            continue;
+        end
+
+        parts = regexp(token, "/", "split");
+        vertexIndex = str2double(parts{1});
+
+        if isnan(vertexIndex) || vertexIndex == 0
+            continue;
+        end
+
+        % OBJ negative indices are relative to the current vertex count.
+        if vertexIndex < 0
+            vertexIndex = double(vertexCount) + vertexIndex + 1;
+        end
+
+        if vertexIndex < 1 || vertexIndex > vertexCount
+            warning("ZED2i:CAD:InvalidFaceIndex", ...
+                "Ignoring invalid face index %d. Valid range is [1, %d].", ...
+                vertexIndex, vertexCount);
+            idx = zeros(0, 1, "uint32");
+            return;
+        end
+
+        validCount = validCount + 1;
+        idx(validCount) = uint32(vertexIndex);
+    end
+
+    idx = idx(1:validCount);
+end
+
+function R = defaultRModelToBody_()
+%defaultRModelToBody_ Default fixed rotation from OBJ frame to ZED body frame.
+%
+% The ZED2i OBJ model frame is not necessarily aligned with the odometry/body
+% frame used in the live visualization. This rotation corrects the default
+% visual orientation of the CAD model.
+
+    theta = -pi / 2;
+
+    R = [ ...
+        cos(theta), -sin(theta), 0; ...
+        sin(theta),  cos(theta), 0; ...
+        0,           0,          1 ...
+    ];
 end

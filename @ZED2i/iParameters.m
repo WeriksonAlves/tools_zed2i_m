@@ -37,5 +37,28 @@ function iParameters(zed, camId)
     zed.pPar.topicPointCloud = ns + "/point_cloud/cloud_registered";
     zed.pPar.topicCameraInfo = ns + "/rgb/camera_info";
 
+    % ---------------------------------------------------------------------
+    % CAD model defaults
+    % ---------------------------------------------------------------------
+    theta = -pi / 2;
+
+    Rz = [ ...
+        cos(theta), -sin(theta), 0; ...
+        sin(theta),  cos(theta), 0; ...
+        0,           0,          1 ...
+    ];
+
+    zed.pPar.cad = struct();
+    zed.pPar.cad.enable = true;
+    zed.pPar.cad.scale = 0.0100028;
+    zed.pPar.cad.center = true;
+    zed.pPar.cad.useSingle = true;
+    zed.pPar.cad.R_model_to_body = Rz;
+    zed.pPar.cad.parts = struct( ...
+        "obj", "ZED2i.obj", ...
+        "mtl", "ZED2i.mtl", ...
+        "t_body", [0; 0; 0] ...
+    );
+
     zed.pPar.fpsAlpha = 0.1;
 end

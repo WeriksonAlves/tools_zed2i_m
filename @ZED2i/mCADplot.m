@@ -56,7 +56,11 @@ function ensureCadLoaded_(zed)
 end
 
 function ensurePose_(zed)
-    if ~isfield(zed, "pPos") || ~isfield(zed.pPos, "X") || isempty(zed.pPos.X)
+    if isempty(zed.pPos) || ~isstruct(zed.pPos)
+        zed.pPos = struct();
+    end
+
+    if ~isfield(zed.pPos, "X") || isempty(zed.pPos.X)
         zed.pPos.X = zeros(12, 1);
     end
 
@@ -64,12 +68,12 @@ function ensurePose_(zed)
     if ~isnumeric(X)
         error("ZED2i:CAD:InvalidPoseType", "zed.pPos.X must be numeric.");
     end
+
     if numel(X) < 6
         error("ZED2i:CAD:MissingPose", ...
             "zed.pPos.X has %d elements (need >= 6).", numel(X));
     end
 
-    % Normalize to double column vector for pose (cheap, tiny)
     zed.pPos.X = double(X);
 end
 
@@ -180,6 +184,30 @@ function mCADmake_(zed)
         faces = obj.f3;
         if size(faces, 1) == 3
             faces = faces.'; % M×3
+        end
+
+        if isempty(Vn3) || size(Vn3, 2) ~= 3
+            error("ZED2i:CAD:InvalidVertices", ...
+                "CAD vertices must be an Nx3 matrix.");
+        end
+
+        if isempty(faces) || size(faces, 2) ~= 3
+            error("ZED2i:CAD:InvalidFaces", ...
+                "CAD faces must be an Mx3 matrix.");
+        end
+
+        maxFaceIndex = max(faces(:));
+        numVertices = size(Vn3, 1);
+
+        if maxFaceIndex > numVertices
+            error("ZED2i:CAD:FaceIndexOutOfRange", ...
+                "Invalid CAD mesh: max face index is %d, but only %d vertices exist.", ...
+                maxFaceIndex, numVertices);
+        end
+
+        if min(faces(:)) < 1
+            error("ZED2i:CAD:InvalidFaceIndex", ...
+                "Invalid CAD mesh: face indices must be >= 1.");
         end
 
         h = patch( ...
