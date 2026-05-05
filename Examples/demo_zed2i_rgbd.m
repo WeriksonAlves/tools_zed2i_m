@@ -21,21 +21,29 @@ end
 
 %% Create ZED2i object and guarantee proper cleanup
 zed = ZED2i(0, "Profile", "minimal");
-zed.setStreamHz("image", 5);
-zed.setStreamHz("depth", 5);
+
+% Keep only the point cloud stream enabled for this demo.
 zed.setEnabled("enableImu", false);
 zed.setEnabled("enablePose", false);
 zed.setEnabled("enablePointCloud", false);
 
+% Disable streams not used by this demo.
+zed.setStreamHz("image", 60);
+zed.setStreamHz("depth", 60);
+zed.setStreamHz("imu", 0);
+zed.setStreamHz("pose", 0);
+zed.setStreamHz("calib", 0);
+zed.setStreamHz("pcd", 0);
+
 cleanupObj = onCleanup(@() safeDisconnect(zed)); %#ok<NASGU>
 
-% Use direct receive/fetch mode for deterministic demo behavior.
+% Use direct receive/fetch mode for deterministic validation.
 % Callback/cache mode can be validated separately.
 zed.rosConnect("UseCallbacks", false);
 
 %% Visualization and timing parameters
-t_max      = 30;  % [s] total demo time
-target_fps = 5;   % desired preview FPS
+t_max      = 15;  % [s] total demo time
+target_fps = 15;   % desired preview FPS
 
 %% Pre-create figure and graphics objects
 hFig = figure('Name', 'ZED2i RGB-D Preview', 'NumberTitle', 'off');

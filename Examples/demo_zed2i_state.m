@@ -27,9 +27,19 @@ zed = ZED2i(0, "Profile", "live");
 % But it's good to show how to enable or disable features.
 zed.setEnabled("enableImu", true);
 zed.setEnabled("enablePose", true);
+zed.setEnabled("enablePointCloud", false);
 
-cleanupObj = onCleanup(@() zed.rosDisconnect());
-% Use direct receive/fetch mode for deterministic demo behavior.
+% Disable streams not used by this demo.
+zed.setStreamHz("image", 0);
+zed.setStreamHz("depth", 0);
+zed.setStreamHz("imu", 120);
+zed.setStreamHz("pose", 10);
+zed.setStreamHz("calib", 0);
+zed.setStreamHz("pcd", 0);
+
+cleanupObj = onCleanup(@() safeDisconnect(zed)); %#ok<NASGU>
+
+% Use direct receive/fetch mode for deterministic validation.
 % Callback/cache mode can be validated separately.
 zed.rosConnect("UseCallbacks", false);
 
@@ -43,8 +53,8 @@ angVelImu     = [];           % [N x 3] velocidades angulares IMU
 linAccImu     = [];           % [N x 3] acelerações lineares IMU
 
 %% Demo parameters
-t_max      = 30;   % duração total [s]
-target_fps = 15;   % taxa de atualização desejada (logs/seg)
+t_max      = 15;   % duração total [s]
+target_fps = 30;   % taxa de atualização desejada (logs/seg)
 frameCount = 0;
 
 t  = tic;          % timer total
