@@ -29,6 +29,8 @@ zed.setEnabled("enableImu", true);
 zed.setEnabled("enablePose", true);
 
 cleanupObj = onCleanup(@() zed.rosDisconnect());
+% Use direct receive/fetch mode for deterministic demo behavior.
+% Callback/cache mode can be validated separately.
 zed.rosConnect("UseCallbacks", false);
 
 %% Buffers para logs de estado

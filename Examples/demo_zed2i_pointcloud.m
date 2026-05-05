@@ -1,19 +1,20 @@
 % demo_zed2i_pointcloud.m
-% PointCloud2 real-time preview (10 s) using ZED2i.
+% Simple demonstration of retrieving PointCloud2 data from the ZED2i.
 %
-% Dois modos de aquisição:
-%   1) Explícito: zed.rosGetPointCloud()
-%   2) Alto nível: zed.getSensorData() + autoFetchPointCloud = true
+% Operation modes:
+%   1) "static": captures one current point cloud frame and displays it.
+%   2) "live"  : displays the current point cloud during t_max seconds.
 %
-% Durante t_max segundos, o script:
-%   - lê a point cloud
-%   - subamostra para visualização
-%   - atualiza um scatter3 em tempo real
+% This demo uses getSensorData() as the high-level acquisition API.
+% Direct rosGetPointCloud() calls are intentionally avoided here because
+% rosGet* methods are decode-only helpers, while getSensorData() is the
+% single commit point for class state.
 
 %% Add project to path (root-based)
 clearvars; close all; clc;
+
 current_path = pwd;
-root  = 'tools_zed2i_m';
+root = 'tools_zed2i_m';
 
 idx = strfind(current_path, root);
 if ~isempty(idx)
@@ -25,175 +26,231 @@ else
     addpath(genpath(current_path));
 end
 
+%% Demo configuration
+% Choose:
+%   "static" -> show a single current point cloud frame
+%   "live"   -> update the current point cloud during t_max seconds
+demoMode = "static";
+
+t_max = 15;              % [s] live visualization duration
+target_fps_cloud = 5;    % [Hz] visualization/update loop rate
+pointCloudHz = 5;        % [Hz] point cloud acquisition rate
+maxPointsToShow = 1e4;   % max number of points rendered by scatter3
+
 %% Create ZED2i object and guarantee proper cleanup
 zed = ZED2i(0, "Profile", "live");
 
-% Only demonstrate, since it is enabled by default in the "live" profile.
-% But it's good to show how to enable or disable features.
+% Keep only the point cloud stream enabled for this demo.
 zed.setEnabled("enableImu", false);
 zed.setEnabled("enablePose", false);
 zed.setEnabled("enablePointCloud", true);
 
-zed.setStreamHz("pcd", 1);
+% Disable streams not used by this demo.
+zed.setStreamHz("image", 0);
+zed.setStreamHz("depth", 0);
+zed.setStreamHz("imu", 0);
+zed.setStreamHz("pose", 0);
+zed.setStreamHz("calib", 0);
 
-cleanupObj = onCleanup(@() zed.rosDisconnect());
-zed.rosConnect();
+% PointCloud2 is heavy, so keep acquisition conservative.
+zed.setStreamHz("pcd", pointCloudHz);
 
-%% Buffers para logs de estado
+cleanupObj = onCleanup(@() safeDisconnect(zed)); %#ok<NASGU>
 
-%% Demo parameters
-t_max = 10;
-target_fps_cloud = 5;
-maxPointsToShow = 1e4;
+% Use direct receive/fetch mode for deterministic validation.
+% Callback/cache mode can be validated separately.
+zed.rosConnect("UseCallbacks", false);
 
-%% Initialization: get at least one valid point cloud
+%% Wait for one valid point cloud
 fprintf("Waiting for first valid point cloud...\n");
 
-pc = zed.sEmptyPointCloud();
-t0 = tic;
-tc = tic;
+[pc, ok, err] = waitForPointCloud(zed, t_max, target_fps_cloud);
 
-while toc(t0) < t_max
-    if toc(tc) < 1 / target_fps_cloud
-        pause(0.01);
-        continue;
-    end
-    tc = tic;
-
-    data = zed.getSensorData();
-
-    if ~data.Connected
-        fprintf("Disconnected. LastError: %s\n", string(data.LastError));
-        break;
-    end
-
-    if data.HasPointCloud && isfield(data.PointCloud, "XYZ") && ~isempty(data.PointCloud.XYZ)
-        pc = data.PointCloud;
-        fprintf("First PointCloud received via getSensorData().\n");
-        break;
-    end
-
-    fprintf("Waiting for PointCloud...\n");
-end
-
-if ~isfield(pc, "XYZ") || isempty(pc.XYZ)
-    fprintf("Could not get initial point cloud. LastError: %s\n", string(data.LastError));
+if ~ok
+    fprintf("Could not get initial point cloud. LastError: %s\n", string(err));
     return;
 end
 
-% %% Preparar visualização inicial (scatter3)
-% numPoints = size(pc.XYZ, 1);
-% fprintf("Point cloud inicial: %d pontos.\n", numPoints);
+fprintf("First PointCloud received via getSensorData().\n");
+fprintf("Initial point cloud: %d points.\n", size(pc.XYZ, 1));
 
-% xyzVis = pc.XYZ;
-% if numPoints > maxPointsToShow
-%     idxSub = randperm(numPoints, maxPointsToShow);
-%     xyzVis = xyzVis(idxSub, :);
-%     fprintf("Subamostrando para %d pontos para visualização.\n", maxPointsToShow);
-% end
+%% Create initial visualization
+[hFig, hScat] = createPointCloudFigure(pc, maxPointsToShow, demoMode);
 
-% hFig = figure('Name', 'ZED2i PointCloud - Real-time', 'NumberTitle', 'off');
-% hScat = scatter3(xyzVis(:,1), xyzVis(:,2), xyzVis(:,3), 1, xyzVis(:,3), '.');
-% grid on;
-% xlabel('X (m)');
-% ylabel('Y (m)');
-% zlabel('Z (m)');
-% title(sprintf('ZED2i Registered PointCloud (%s)', ...
-%     ternary(useHighLevel, "getSensorData", "rosGetPointCloud")));
-% axis equal;
+switch lower(demoMode)
+    case "static"
+        title(sprintf("ZED2i PointCloud | static frame | pts = %d", ...
+            size(pc.XYZ, 1)));
+        fprintf("Static point cloud displayed.\n");
 
-% % ----- Escalas FIXAS (cubo 4x4x4) -----
-% xlim([-1 3]);
-% ylim([-2 2]);
-% zlim([-2 2]);
+    case "live"
+        runLivePointCloudPreview( ...
+            zed, hFig, hScat, t_max, target_fps_cloud, maxPointsToShow);
 
-% axis manual;   % <-- CRÍTICO: trava o auto-scale
-% colormap turbo;
-% colorbar;
+    otherwise
+        error("ZED2i:Demo:InvalidMode", ...
+            "Invalid demoMode '%s'. Use 'static' or 'live'.", demoMode);
+end
 
-% drawnow;
+%% ------------------------------------------------------------------------
+% Local helper functions
+% -------------------------------------------------------------------------
 
-% %% Loop de atualização em tempo real (10 s a partir de agora)
-% t_startVis = tic;
-% tc         = tic;
+function [pc, ok, err] = waitForPointCloud(zed, timeoutSec, targetRateHz)
+%waitForPointCloud Wait until getSensorData() returns a valid point cloud.
 
-% fprintf("Iniciando visualização em tempo real por %.1f s...\n", t_max);
+    pc = zed.sEmptyPointCloud();
+    ok = false;
+    err = "";
 
-% while ishandle(hFig) && toc(t_startVis) < t_max
+    t0 = tic;
+    tc = tic;
 
-%     if toc(tc) < 1 / target_fps_cloud
-%         pause(0.01);
-%         continue;
-%     end
-%     tc = tic;
+    while toc(t0) < timeoutSec
+        if toc(tc) < 1 / targetRateHz
+            pause(0.01);
+            continue;
+        end
+        tc = tic;
 
-%     % Leitura de nova nuvem
-%     if useHighLevel
-%         data = zed.getSensorData();
+        data = zed.getSensorData();
 
-%         if ~data.Connected
-%             fprintf("ZED2i desconectado durante visualização. LastError: %s\n", ...
-%                 string(data.LastError));
-%             break;
-%         end
+        if ~data.Connected
+            err = "Disconnected. LastError: " + string(data.LastError);
+            return;
+        end
 
-%         if ~(data.HasPointCloud && isfield(data.PointCloud, "XYZ") ...
-%                 && ~isempty(data.PointCloud.XYZ))
-%             fprintf("PointCloud ainda não disponível neste frame (modo alto nível).\n");
-%             continue;
-%         end
+        if data.HasPointCloud ...
+                && isfield(data.PointCloud, "XYZ") ...
+                && ~isempty(data.PointCloud.XYZ)
+            pc = data.PointCloud;
+            ok = true;
+            return;
+        end
 
-%         pcFrame = data.PointCloud;
+        err = data.LastError;
+        fprintf("Waiting for PointCloud...\n");
+    end
+end
 
-%     else
-%         pcFrameLocal = zed.rosGetPointCloud();
+function [hFig, hScat] = createPointCloudFigure(pc, maxPointsToShow, modeName)
+%createPointCloudFigure Create a scatter3 visualization for one point cloud.
 
-%         if ~(zed.pFlag.HasPointCloud && isfield(pcFrameLocal, "XYZ") ...
-%                 && ~isempty(pcFrameLocal.XYZ))
-%             fprintf("PointCloud ainda não disponível neste frame (modo explícito).\n");
-%             continue;
-%         end
+    xyzVis = subsamplePointCloud(pc.XYZ, maxPointsToShow);
 
-%         pcFrame = pcFrameLocal;
-%     end
+    hFig = figure( ...
+        'Name', sprintf('ZED2i PointCloud - %s', modeName), ...
+        'NumberTitle', 'off');
 
-%     xyz = pcFrame.XYZ;
-%     nFramePoints = size(xyz, 1);
+    hScat = scatter3( ...
+        xyzVis(:, 1), ...
+        xyzVis(:, 2), ...
+        xyzVis(:, 3), ...
+        1, ...
+        xyzVis(:, 3), ...
+        '.');
 
-%     % Subamostragem para visual
-%     if nFramePoints > maxPointsToShow
-%         idxSub = randperm(nFramePoints, maxPointsToShow);
-%         xyzVis = xyz(idxSub, :);
-%     else
-%         xyzVis = xyz;
-%     end
+    grid on;
+    xlabel('X (m)');
+    ylabel('Y (m)');
+    zlabel('Z (m)');
+    axis equal;
 
-%     % Atualização do scatter
-%     if ishandle(hScat)
-%         set(hScat, ...
-%             'XData', xyzVis(:,1), ...
-%             'YData', xyzVis(:,2), ...
-%             'ZData', xyzVis(:,3), ...
-%             'CData', xyzVis(:,3));
-%     end
+    % Fixed view limits for stable visualization.
+    xlim([-1 3]);
+    ylim([-2 2]);
+    zlim([-2 2]);
+    axis manual;
 
-%     titleStr = sprintf('ZED2i PointCloud (%s) | t = %.1f s | pts = %d', ...
-%         ternary(useHighLevel, "getSensorData", "rosGetPointCloud"), ...
-%         toc(t_startVis), nFramePoints);
-%     title(titleStr);
+    colormap turbo;
+    colorbar;
+    title(sprintf("ZED2i PointCloud | %s", modeName));
 
-%     drawnow limitrate nocallbacks;
-% end
+    drawnow;
+end
 
-% fprintf("Visualização em tempo real encerrada.\n");
+function runLivePointCloudPreview( ...
+    zed, hFig, hScat, tMax, targetRateHz, maxPointsToShow)
+%runLivePointCloudPreview Update the displayed point cloud during tMax seconds.
 
-% % rosDisconnect será chamado automaticamente por cleanupObj
+    fprintf("Starting live point cloud preview for %.1f s...\n", tMax);
 
-% %% Pequeno helper tipo operador ternário
-% function out = ternary(cond, valTrue, valFalse)
-%     if cond
-%         out = valTrue;
-%     else
-%         out = valFalse;
-%     end
-% end
+    tStart = tic;
+    tc = tic;
+    frameCount = 0;
+
+    while ishandle(hFig) && toc(tStart) < tMax
+        if toc(tc) < 1 / targetRateHz
+            pause(0.01);
+            continue;
+        end
+        tc = tic;
+
+        data = zed.getSensorData();
+
+        if ~data.Connected
+            fprintf("ZED2i disconnected during live preview. LastError: %s\n", ...
+                string(data.LastError));
+            break;
+        end
+
+        if ~(data.HasPointCloud ...
+                && isfield(data.PointCloud, "XYZ") ...
+                && ~isempty(data.PointCloud.XYZ))
+            if mod(frameCount, 10) == 0
+                fprintf("PointCloud not available in this frame. LastError: %s\n", ...
+                    string(data.LastError));
+            end
+            frameCount = frameCount + 1;
+            continue;
+        end
+
+        xyz = data.PointCloud.XYZ;
+        xyzVis = subsamplePointCloud(xyz, maxPointsToShow);
+
+        if ishandle(hScat)
+            set(hScat, ...
+                'XData', xyzVis(:, 1), ...
+                'YData', xyzVis(:, 2), ...
+                'ZData', xyzVis(:, 3), ...
+                'CData', xyzVis(:, 3));
+        end
+
+        title(sprintf( ...
+            "ZED2i PointCloud | live | t = %.1f s | pts = %d", ...
+            toc(tStart), size(xyz, 1)));
+
+        drawnow limitrate nocallbacks;
+
+        frameCount = frameCount + 1;
+    end
+
+    fprintf("Live point cloud preview finished.\n");
+end
+
+function xyzVis = subsamplePointCloud(xyz, maxPoints)
+%subsamplePointCloud Randomly subsample point cloud for visualization.
+
+    if isempty(xyz)
+        xyzVis = zeros(0, 3, "single");
+        return;
+    end
+
+    nPoints = size(xyz, 1);
+
+    if nPoints > maxPoints
+        idxSub = randperm(nPoints, maxPoints);
+        xyzVis = xyz(idxSub, :);
+    else
+        xyzVis = xyz;
+    end
+end
+
+function safeDisconnect(zed)
+%safeDisconnect Best-effort ROS2 cleanup.
+
+    try
+        zed.rosDisconnect();
+    catch
+    end
+end

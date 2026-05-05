@@ -24,6 +24,8 @@ end
 zed = ZED2i(0, "Profile", "calibration");
 cleanupObj = onCleanup(@() safeDisconnect(zed)); %#ok<NASGU>
 
+% Use direct receive/fetch mode for deterministic demo behavior.
+% Callback/cache mode can be validated separately.
 zed.rosConnect("UseCallbacks", false);
 
 %% Retrieve calibration data
