@@ -152,7 +152,7 @@ classdef ZED2i < handle
 
     methods (Access = private)
         function ensureStreamHzStruct_(obj)
-            if ~isfield(obj, "pPar") || ~isstruct(obj.pPar)
+            if isempty(obj.pPar) || ~isstruct(obj.pPar)
                 obj.pPar = struct();
             end
             if ~isfield(obj.pPar, "streamHz") || ~isstruct(obj.pPar.streamHz)

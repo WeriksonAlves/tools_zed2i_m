@@ -29,7 +29,7 @@ zed.setEnabled("enableImu", true);
 zed.setEnabled("enablePose", true);
 
 cleanupObj = onCleanup(@() zed.rosDisconnect());
-zed.rosConnect();
+zed.rosConnect("UseCallbacks", false);
 
 %% Buffers para logs de estado
 traj          = zeros(0, 3);  % trajetória (XYZ) da pose

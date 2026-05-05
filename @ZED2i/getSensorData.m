@@ -36,7 +36,7 @@ function data = getSensorData(zed)
     % CALIBRATION (CameraInfo) [lightweight]
     % ---------------------------------------------------------------------
     if zed.sShouldFetch("calib")
-        [calib, intr, ok, err] = zed.rosGetCalibration("Mode", mode);
+        [calib, intr, ok, err] = zed.rosGetCalibration("Mode", "fetch");
         if ok
             % Model 1: single struct includes intrinsics
             calib.Intrinsics = intr;
@@ -58,6 +58,11 @@ function data = getSensorData(zed)
     % ---------------------------------------------------------------------
     if zed.sShouldFetch("image")
         [img, ok, err] = zed.rosGetImage("Mode", mode);
+
+        if ~ok && mode == "cached"
+            [img, ok, err] = zed.rosGetImage("Mode", "fetch");
+        end
+
         if ok
             zed.pData.Image = img;
             zed.pFlag.HasImage = true;
@@ -67,6 +72,7 @@ function data = getSensorData(zed)
                 errList(end+1) = "Image: " + err; %#ok<AGROW>
             end
         end
+
         zed.sMarkFetch("image");
     end
 
@@ -75,6 +81,11 @@ function data = getSensorData(zed)
     % ---------------------------------------------------------------------
     if zed.sShouldFetch("depth")
         [depth, depthMask, ok, err] = zed.rosGetDepth("Mode", mode);
+
+        if ~ok && mode == "cached"
+            [depth, depthMask, ok, err] = zed.rosGetDepth("Mode", "fetch");
+        end
+
         if ok
             zed.pData.Depth = depth;
             zed.pData.DepthMask = depthMask;
@@ -85,6 +96,7 @@ function data = getSensorData(zed)
                 errList(end+1) = "Depth: " + err; %#ok<AGROW>
             end
         end
+
         zed.sMarkFetch("depth");
     end
 
@@ -92,7 +104,12 @@ function data = getSensorData(zed)
     % IMU
     % ---------------------------------------------------------------------
     if zed.sShouldFetch("imu") && isfield(zed.pPar, "enableImu") && logical(zed.pPar.enableImu)
-        [imu, ok, err] = zed.rosGetImu("Mode", mode);
+    [imu, ok, err] = zed.rosGetImu("Mode", mode);
+
+        if ~ok && mode == "cached"
+            [imu, ok, err] = zed.rosGetImu("Mode", "fetch");
+        end
+
         if ok
             zed.pData.Imu = imu;
             zed.pData.Imu.TimestampSec = data.TimestampSec;
@@ -110,15 +127,20 @@ function data = getSensorData(zed)
     % ---------------------------------------------------------------------
     if zed.sShouldFetch("pose") && isfield(zed.pPar, "enablePose") && logical(zed.pPar.enablePose)
         [pose, ok, err] = zed.rosGetPose("Mode", mode);
+
+        if ~ok && mode == "cached"
+            [pose, ok, err] = zed.rosGetPose("Mode", "fetch");
+        end
+
         if ok
             zed.pData.Pose = pose;
             zed.pData.Pose.TimestampSec = data.TimestampSec;
             zed.pFlag.HasPose = true;
 
-            % Commit to pPos convention (if available)
+            % Commit to pPos convention.
             if isstruct(pose) && isfield(pose, "Position") && isfield(pose, "OrientationEuler")
-                if ~isfield(zed.pPos, "X") || numel(zed.pPos.X) < 6
-                    zed.pPos.X = zeros(6, 1);
+                if ~isfield(zed.pPos, "X") || numel(zed.pPos.X) < 12
+                    zed.pPos.X = zeros(12, 1);
                 end
                 zed.pPos.X(1:3) = pose.Position(:);
                 zed.pPos.X(4:6) = pose.OrientationEuler(:);
@@ -136,6 +158,11 @@ function data = getSensorData(zed)
     % ---------------------------------------------------------------------
     if zed.sShouldFetch("pcd") && isfield(zed.pPar, "enablePointCloud") && logical(zed.pPar.enablePointCloud)
         [pc, ok, err] = zed.rosGetPointCloud("Mode", mode);
+
+        if ~ok && mode == "cached"
+            [pc, ok, err] = zed.rosGetPointCloud("Mode", "fetch");
+        end
+
         if ok
             zed.pData.PointCloud = pc;
             zed.pData.PointCloud.TimestampSec = data.TimestampSec;
@@ -187,15 +214,14 @@ function data = getSensorData(zed)
 
     data.Metrics = zed.sSafeGetMetrics();
 
-    % Merge last error(s)
-    lastErr = zed.sSafeLastError();
-    if strlength(lastErr) > 0
-        errList(end+1) = lastErr; %#ok<AGROW>
-    end
+    % Store only errors generated in the current acquisition cycle.
+    % Do not merge the previous LastError, otherwise the error string grows
+    % indefinitely across calls.
     if ~isempty(errList)
-        zed.pFlag.LastError = strjoin(errList, " | ");
+        zed.pFlag.LastError = strjoin(unique(errList, "stable"), " | ");
     else
         zed.pFlag.LastError = "";
     end
+
     data.LastError = zed.pFlag.LastError;
 end

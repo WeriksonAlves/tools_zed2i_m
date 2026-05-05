@@ -1,5 +1,12 @@
 function rosConnect(zed, varargin)
 %rosConnect Connect ZED2i object to ROS2 and initialize subscribers.
+%
+% Name-Value:
+%   UseCallbacks (logical): if true, subscribers try to cache messages through
+%       NewMessageFcn callbacks. If false, getSensorData() uses receive().
+%       For deterministic validation demos, prefer UseCallbacks=false.
+%   Include (string array): optional subset of streams:
+%       ["image", "depth", "imu", "pose", "pcd", "calib"].
 
     % ---------------------------------------------------------------------
     % Defensive init (object-safe). DO NOT use isfield on handle objects.
@@ -85,7 +92,7 @@ function rosConnect(zed, varargin)
                 "Durability", qos.Durability);
 
             if useCallbacks
-                zed.pCom.subImage.NewMessageFcn = @(~, msg) onImageMsg(zed, msg);
+                zed.pCom.subImage.NewMessageFcn = @(varargin) onImageMsg(zed, varargin{end});
             end
         end
 
@@ -98,7 +105,7 @@ function rosConnect(zed, varargin)
                 "Durability", qos.Durability);
 
             if useCallbacks
-                zed.pCom.subDepth.NewMessageFcn = @(~, msg) onDepthMsg(zed, msg);
+                zed.pCom.subDepth.NewMessageFcn = @(varargin) onDepthMsg(zed, varargin{end});
             end
         end
 
@@ -111,7 +118,7 @@ function rosConnect(zed, varargin)
                 "Durability", qos.Durability);
 
             if useCallbacks
-                zed.pCom.subImu.NewMessageFcn = @(~, msg) onImuMsg(zed, msg);
+                zed.pCom.subImu.NewMessageFcn = @(varargin) onImuMsg(zed, varargin{end});
             end
         end
 
@@ -124,7 +131,7 @@ function rosConnect(zed, varargin)
                 "Durability", qos.Durability);
 
             if useCallbacks
-                zed.pCom.subOdom.NewMessageFcn = @(~, msg) onOdomMsg(zed, msg);
+                zed.pCom.subOdom.NewMessageFcn = @(varargin) onOdomMsg(zed, varargin{end});
             end
         end
 
@@ -137,7 +144,7 @@ function rosConnect(zed, varargin)
                 "Durability", qos.Durability);
 
             if useCallbacks
-                zed.pCom.subPointCloud.NewMessageFcn = @(~, msg) onPointCloudMsg(zed, msg);
+                zed.pCom.subPointCloud.NewMessageFcn = @(varargin) onPointCloudMsg(zed, varargin{end});
             end
         end
 
@@ -146,11 +153,11 @@ function rosConnect(zed, varargin)
                 zed.pCom.node, ...
                 string(zed.pPar.topicCameraInfo), ...
                 "sensor_msgs/CameraInfo", ...
-                "Reliability", "reliable", ...
+                "Reliability", qos.Reliability, ...
                 "Durability", qos.Durability);
 
             if useCallbacks
-                zed.pCom.subInfo.NewMessageFcn = @(~, msg) onCameraInfoMsg(zed, msg);
+                zed.pCom.subInfo.NewMessageFcn = @(varargin) onCameraInfoMsg(zed, varargin{end});
             end
         end
 
@@ -171,9 +178,18 @@ end
 function streams = resolveStreamsToSubscribe(zed, include)
 %resolveStreamsToSubscribe Decide which streams to subscribe to.
 
-    allStreams = ["image","depth","imu","pose","pcd","calib"];
+    allStreams = ["image", "depth", "imu", "pose", "pcd", "calib"];
 
     if ~isempty(include)
+        include = string(include);
+        invalid = setdiff(include, allStreams);
+
+        if ~isempty(invalid)
+            error("ZED2i:rosConnect:InvalidStream", ...
+                "Invalid stream(s): %s. Valid streams are: %s.", ...
+                strjoin(invalid, ", "), strjoin(allStreams, ", "));
+        end
+
         streams = intersect(allStreams, include, "stable");
         return;
     end

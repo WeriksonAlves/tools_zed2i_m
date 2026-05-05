@@ -24,9 +24,11 @@ end
 zed = ZED2i(0, "Profile", "calibration");
 cleanupObj = onCleanup(@() safeDisconnect(zed)); %#ok<NASGU>
 
-zed.rosConnect();
+zed.rosConnect("UseCallbacks", false);
 
 %% Retrieve calibration data
+pause(1.0);  % gives ROS2 subscriber time to match publishers before receive()
+
 data = zed.getSensorData();
 
 if ~data.HasCalibration
