@@ -1,7 +1,7 @@
-function depthOut = utilSanitizeDepth(~, depthIn)
-%utilSanitizeDepth Normalize depth values: invalid to NaN and single precision.
+function depthOut = sSanitizeDepth(~, depthIn)
+%sSanitizeDepth Normalize depth values: invalid to NaN and single precision.
 %
-%   depthOut = zed.utilSanitizeDepth(depthRaw);
+%   depthOut = zed.sSanitizeDepth(depthRaw);
 
     depthOut = depthIn;
 

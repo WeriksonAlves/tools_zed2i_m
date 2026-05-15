@@ -1,10 +1,14 @@
-function utilUpdateFps(zed, stream)
-%utilUpdateFps Update FPS estimate for the given stream ("image" or "depth").
+function sUpdateFps(zed, stream)
+%sUpdateFps Update FPS estimate for the given stream ("image" or "depth").
 %
-%   zed.utilUpdateFps("image");
-%   zed.utilUpdateFps("depth");
+%   zed.sUpdateFps("image");
+%   zed.sUpdateFps("depth");
 
-    alpha = zed.pPar.fpsAlpha;
+    alpha = 0.1;
+    if isstruct(zed.pPar) && isfield(zed.pPar, "fpsAlpha") && ~isempty(zed.pPar.fpsAlpha)
+        alpha = double(zed.pPar.fpsAlpha);
+    end
+    alpha = min(max(alpha, 0), 1);
 
     switch string(stream)
         case "image"

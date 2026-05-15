@@ -1,40 +1,47 @@
 % demo_zed2i_state.m
-% IMU + Pose/Odom demo using ZED2i.getSensorData (high-level API).
-%
-% - Habilita IMU e Pose via construtor (enableImu / enablePose)
-% - Usa getSensorData para obter:
-%     * Imu (AngularVelocity, LinearAcceleration, etc.)
-%     * Pose (Position, OrientationQuat, etc.)
-%     * Flags, Metrics e LastError
-% - Loga no terminal e acumula trajetória e séries temporais para plot ao final.
-
-clearvars;
-close all;
-clc;
+% Demonstrates how to use getSensorData() to retrieve and log the current state
+% of all sensor streams. This is a high-level snapshot of the ZED2i's state at
+% the moment of the call, including pose, IMU, and stream metrics. % The demo
+% runs for a fixed duration, logging the state at a specified rate, and then
+% plots the collected pose and IMU data.
 
 %% Add project to path (root-based)
-PastaAtual = pwd;
-PastaRaiz  = 'tools_zed2i_m';
+clearvars; close all; clc;
+current_path = pwd;
+root  = 'tools_zed2i_m';
 
-idx = strfind(PastaAtual, PastaRaiz);
+idx = strfind(current_path, root);
 if ~isempty(idx)
-    rootPath = PastaAtual(1:(idx(1) + numel(PastaRaiz) - 1));
+    rootPath = current_path(1:(idx(1) + numel(root) - 1));
     cd(rootPath);
     addpath(genpath(pwd));
-    cd(PastaAtual);
+    cd(current_path);
 else
-    % Se não encontrar a pasta raiz, ainda assim adiciona o path atual
-    addpath(genpath(PastaAtual));
+    addpath(genpath(current_path));
 end
 
-%% Create ZED2i object with IMU and Pose enabled
-zed = ZED2i( ...
-    "enableImu",  true, ...
-    "enablePose", true ...
-);
+%% Create ZED2i object and guarantee proper cleanup
+zed = ZED2i(0, "Profile", "live");
 
-cleanupObj = onCleanup(@() zed.lcDisconnect());
-zed.lcConnect();
+% Only demonstrate, since it is enabled by default in the "live" profile.
+% But it's good to show how to enable or disable features.
+zed.setEnabled("enableImu", true);
+zed.setEnabled("enablePose", true);
+zed.setEnabled("enablePointCloud", false);
+
+% Disable streams not used by this demo.
+zed.setStreamHz("image", 0);
+zed.setStreamHz("depth", 0);
+zed.setStreamHz("imu", 120);
+zed.setStreamHz("pose", 10);
+zed.setStreamHz("calib", 0);
+zed.setStreamHz("pcd", 0);
+
+cleanupObj = onCleanup(@() safeDisconnect(zed)); %#ok<NASGU>
+
+% Use direct receive/fetch mode for deterministic validation.
+% Callback/cache mode can be validated separately.
+zed.rosConnect("UseCallbacks", false);
 
 %% Buffers para logs de estado
 traj          = zeros(0, 3);  % trajetória (XYZ) da pose
@@ -46,8 +53,8 @@ angVelImu     = [];           % [N x 3] velocidades angulares IMU
 linAccImu     = [];           % [N x 3] acelerações lineares IMU
 
 %% Demo parameters
-t_max      = 30;   % duração total [s]
-target_fps = 15;   % taxa de atualização desejada (logs/seg)
+t_max      = 15;   % duração total [s]
+target_fps = 30;   % taxa de atualização desejada (logs/seg)
 frameCount = 0;
 
 t  = tic;          % timer total
@@ -216,4 +223,15 @@ if ~isempty(linAccImu)
     title('Linear Acceleration - Z');
 else
     fprintf("No linear acceleration samples (IMU) collected.\n");
+end
+
+% Explicit cleanup is needed because this file is a script, not a function.
+safeDisconnect(zed);
+clear cleanupObj zed;
+
+%% ------------------------------------------------------------------------
+% Local helper functions
+% -------------------------------------------------------------------------
+function safeDisconnect(zed)
+    try, zed.rosDisconnect(); catch, end
 end

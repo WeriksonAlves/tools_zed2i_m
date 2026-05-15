@@ -135,18 +135,18 @@ Default topics (configurable via constructor):
 tools_zed2i_m/
 ├── @ZED2i/                 % MATLAB class implementation
 │   ├── ZED2i.m
-│   ├── cfgParameters.m
-│   ├── cfgState.m
-│   ├── lcConnect.m
-│   ├── lcDisconnect.m
+│   ├── iParameters.m
+│   ├── iState.m
+│   ├── rosConnect.m
+│   ├── rosDisconnect.m
 │   ├── rGrab.m
-│   ├── getImage.m
-│   ├── getDepth.m
-│   ├── getCalibration.m
+│   ├── rosGetImage.m
+│   ├── rosGetDepth.m
+│   ├── rosGetCalibration.m
 │   ├── getIntrinsics.m
-│   ├── getImu.m
-│   ├── getPose.m
-│   ├── getPointCloud.m
+│   ├── rosGetImu.m
+│   ├── rosGetPose.m
+│   ├── rosGetPointCloud.m
 │   └── getSensorData.m
 │
 ├── Examples/               % Usage and validation demos
@@ -167,16 +167,16 @@ tools_zed2i_m/
 
 ```matlab
 zed = ZED2i();
-zed.lcConnect();
+zed.rosConnect();
 
 for k = 1:100
     if zed.rGrab()
-        imshow(zed.getImage());
+        imshow(zed.rosGetImage());
         drawnow;
     end
 end
 
-zed.lcDisconnect();
+zed.rosDisconnect();
 ```
 
 ---
@@ -188,14 +188,14 @@ The recommended way to access data is via `getSensorData`, which returns a
 
 ```matlab
 zed = ZED2i("enableImu", true, "enablePose", true);
-zed.lcConnect();
+zed.rosConnect();
 
 data = zed.getSensorData();
 
 imshow(data.Image);
 disp(data.Metrics);
 
-zed.lcDisconnect();
+zed.rosDisconnect();
 ```
 
 Returned fields may include:

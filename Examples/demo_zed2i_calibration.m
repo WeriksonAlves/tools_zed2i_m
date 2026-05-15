@@ -1,81 +1,61 @@
 % demo_zed2i_calibration.m
-% Fetch and display ZED2i camera calibration and MATLAB intrinsics from ROS2.
-
-clearvars;
-close all;
-clc;
+% Simple demonstration of retrieving ZED2i calibration data using the "calibration" profile.
+% This profile minimizes bandwidth by disabling all streams except calibration.
+% Note: calibration data is typically static, so streaming at high rates is unnecessary.
+%       In a real application, you might retrieve calibration once and then switch to a 
+%       different profile for regular streaming.
 
 %% Add project to path (root-based)
-PastaAtual = pwd;
-PastaRaiz  = 'tools_zed2i_m';
+clearvars; close all; clc;
+current_path = pwd;
+root  = 'tools_zed2i_m';
 
-idx = strfind(PastaAtual, PastaRaiz);
+idx = strfind(current_path, root);
 if ~isempty(idx)
-    rootPath = PastaAtual(1:(idx(1) + numel(PastaRaiz) - 1));
+    rootPath = current_path(1:(idx(1) + numel(root) - 1));
     cd(rootPath);
     addpath(genpath(pwd));
-    cd(PastaAtual);
+    cd(current_path);
 else
-    % Caso a pasta raiz não seja encontrada, ainda assim segue com o path atual
-    addpath(genpath(PastaAtual));
+    addpath(genpath(current_path));
 end
 
-%% Create sensor object and guarantee proper cleanup
-zed = ZED2i();
-cleanupObj = onCleanup(@() zed.lcDisconnect());
+%% Create ZED2i object and guarantee proper cleanup
+zed = ZED2i(0, "Profile", "calibration");
+cleanupObj = onCleanup(@() safeDisconnect(zed)); %#ok<NASGU>
 
-zed.lcConnect();
+% Use direct receive/fetch mode for deterministic demo behavior.
+% Callback/cache mode can be validated separately.
+zed.rosConnect("UseCallbacks", false);
 
-%% Fetch calibration (CameraInfo + intrinsics)
-disp('--- ZED2i Calibration ---');
+%% Retrieve calibration data
+pause(1.0);  % gives ROS2 subscriber time to match publishers before receive()
 
-calib = struct();
-intr  = [];
+data = zed.getSensorData();
 
-try
-    % Nova assinatura: [calib, intr] = getCalibration(zed)
-    [calib, intr] = zed.getCalibration();
-catch excp
-    disp('Failed to retrieve calibration from ROS2 CameraInfo.');
-    if isfield(zed.pFlag, "LastError") && ~isempty(zed.pFlag.LastError)
-        disp(['LastError: ' char(zed.pFlag.LastError)]);
-    end
-    disp(['Reason: ' excp.message]);
+if ~data.HasCalibration
+    disp("Calibration not available.");
+    disp("LastError: " + string(data.LastError));
     return;
 end
 
-%% Validate calibration
-if isempty(calib) || ...
-   ~isfield(calib, "K")      || isempty(calib.K)      || ...
-   ~isfield(calib, "Width")  || isempty(calib.Width)  || ...
-   ~isfield(calib, "Height") || isempty(calib.Height)
+calib = data.Calibration;
+disp(calib);
 
-    disp('Calibration not available or incomplete.');
-    if isfield(zed.pFlag, "LastError") && ~isempty(zed.pFlag.LastError)
-        disp(['LastError: ' char(zed.pFlag.LastError)]);
-    end
-    return;
+if ~isempty(data.Intrinsics)
+    disp("--- cameraIntrinsics ---");
+    disp(data.Intrinsics);
 end
 
-%% Print calibration data
-disp(['Model: ' char(calib.DistortionModel)]);
-disp(['Size : ' num2str(calib.Width) ' x ' num2str(calib.Height)]);
+% Explicit cleanup is needed because this file is a script, not a function.
+safeDisconnect(zed);
+clear cleanupObj zed;
 
-disp('K =');
-disp(calib.K);
+%% ------------------------------------------------------------------------
+% Local helper functions
+% -------------------------------------------------------------------------
 
-disp('D =');
-if ~isfield(calib, "D") || isempty(calib.D)
-    disp([]);
-else
-    disp(calib.D(:).');
+function safeDisconnect(zed)
+    try, zed.rosDisconnect(); catch, end
 end
 
-%% Print MATLAB camera intrinsics (if available)
-disp('--- MATLAB cameraIntrinsics ---');
-
-if isempty(intr)
-    disp('cameraIntrinsics not available (e.g., missing Computer Vision Toolbox).');
-else
-    disp(intr);
-end
